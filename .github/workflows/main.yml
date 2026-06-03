@@ -20,7 +20,6 @@ jobs:
       - name: Build Python Script
         shell: powershell
         run: |
-          # 윈도우 한국어 환경(CP949)에서 글자 깨짐과 정규식 버그를 완벽하게 차단하도록 수정된 코드입니다.
           $code = @'
           import os
           import re
@@ -98,13 +97,12 @@ jobs:
 
                   success_count = 0
                   
-                  # 공백 깨짐이나 잘림이 없도록 명확하게 선언된 헤더 데이터
+                  # 변환 후 상단에 삽입될 표준 헤더 양식 (끝에 <SYNC Start=0> 태그와 공백이 정상적으로 붙어있음)
                   target_header = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
 
                   for filepath in self.file_list:
                       try:
                           content = ""
-                          # 파일 읽기 인코딩 검증 (BOM 제거 위해 utf-8-sig 추가)
                           for encoding in ['cp949', 'utf-8-sig', 'utf-8', 'euc-kr']:
                               try:
                                   with open(filepath, 'r', encoding=encoding) as f:
@@ -120,25 +118,24 @@ jobs:
                               content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
                               content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
 
-                          # [3번 기능] 앞 구간 헤더 교체 (SAMI 시작부터 BODY 태그 안의 안내문 끝부분까지 정밀 타격)
+                          # [3번 기능] 앞 구간 헤더 교체 
+                          # 제목에 어떤 글자가 오든 <SAMI>부터 원본 주석의 끝까지 유연하게 매칭하여 정확히 도려냅니다.
                           if self.fix_header_done:
                               pattern = r'(?i)<SAMI>.*?(?:<--\s*Open tools menu,\s*Security,\s*Show local captions when present\s*-->)'
                               if re.search(pattern, content, flags=re.DOTALL):
                                   content = re.sub(pattern, target_header, content, count=1, flags=re.DOTALL)
                               else:
-                                  # 혹시라도 해당 안내 주석문이 없는 파일의 경우 BODY 시작 지점까지 교체
-                                  content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header + "\n", content, count=1, flags=re.DOTALL)
+                                  # 혹시 안내 주석문 규격이 살짝 다른 파일의 경우 <BODY> 태그 지점까지 교체
+                                  content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header, content, count=1, flags=re.DOTALL)
 
                           # [4번 기능] 줄바꿈 자동 변환
                           if self.fix_newline_done:
-                              # 4-1. <P Class=KRCC> 뒤 문자 줄바꿈 (단, &nbsp;는 붙어있어야 하므로 예외 처리)
-                              # &nbsp;가 아닌 일반 문자나 공백이 올 때만 개행을 집어넣습니다.
+                              # 4-1. <P Class=KRCC> 뒤 문자 줄바꿈 (단, 헤더에 포함된 &nbsp;는 강제 줄바꿈 되지 않도록 제외 처리)
                               content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
                               
                               # 4-2. <br> 뒤 문자 줄바꿈
                               content = re.sub(r'(?i)(<br>)[ \t]*([^\r\n<>])', r'\1\n\2', content)
 
-                          # 저장할 때 인코딩을 깨끗한 cp949(BOM 없음)로 명시하여 물음표(?), 외계어 버그 원천 차단
                           with open(filepath, 'w', encoding='cp949', errors='replace') as f:
                               f.write(content)
                           
@@ -159,7 +156,6 @@ jobs:
               app = SMIEditorApp(root)
               root.mainloop()
           '@
-          # 한국어 윈도우 전용 텍스트 인코딩 규격으로 깨끗하게 추출합니다.
           [System.IO.File]::WriteAllText("$pwd\smi_editor.py", $code, [System.Text.Encoding]::GetEncoding("ks_c_5601-1987"))
 
       - name: Build with PyInstaller
