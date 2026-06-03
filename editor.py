@@ -76,20 +76,32 @@ class SMIEditor:
         self.status_label.config(text="모든 파일 변환 완료. 저장 방식을 선택하세요.")
 
     def save_files(self, overwrite):
-        for item, path in self.file_data.items():
-            if item not in self.temp_contents: continue
+            """
+            overwrite=True: 덮어쓰기
+            overwrite=False: 파일명 뒤에 '_변환완료.smi' 붙여서 저장
+            """
+            saved_count = 0
+            for item, path in self.file_data.items():
+                if item not in self.temp_contents: 
+                    continue
             
-            if overwrite:
-                save_path = path
-            else:
-                save_path = filedialog.asksaveasfilename(initialdir=os.path.dirname(path), 
-                                                        initialfile=os.path.basename(path),
-                                                        defaultextension=".smi")
-                if not save_path: continue
+                if overwrite:
+                    save_path = path
+                else:
+                    # 파일명에서 확장자(.smi)를 떼고 '_변환완료.smi'를 붙임
+                    dir_name = os.path.dirname(path)
+                    base_name = os.path.splitext(os.path.basename(path))[0]
+                    save_path = os.path.join(dir_name, f"{base_name}_변환완료.smi")
             
-            with open(save_path, 'w', encoding='utf-8-sig') as f: f.write(self.temp_contents[item])
-            self.tree.set(item, "Status", "파일 저장됨")
-        self.status_label.config(text="작업 완료")
+                try:
+                    with open(save_path, 'w', encoding='utf-8-sig') as f:
+                        f.write(self.temp_contents[item])
+                    self.tree.set(item, "Status", "저장 완료")
+                    saved_count += 1
+                except Exception as e:
+                    self.tree.set(item, "Status", f"저장 실패: {e}")
+                
+            self.status_label.config(text=f"총 {saved_count}개 파일 저장 완료")
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
