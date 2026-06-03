@@ -17,13 +17,9 @@ jobs:
         run: |
           pip install tkinterdnd2 pyinstaller          
 
-      - name: Create Python Script Safely via Core Python
-        # 파워쉘이나 cmd의 특수문자 검열 및 무한 대기를 100% 원천 차단하기 위해
-        # 파이썬 자체 기능을 이용해 코드를 안전하게 텍스트 파일로 밀어 넣습니다.
+      - name: Create Python Script Safely
         shell: python
         run: |
-          import os
-
           code_content = """import os
           import re
           import tkinter as tk
@@ -98,7 +94,7 @@ jobs:
                       return
                   success_count = 0
                   
-                  # 1. 완벽한 주석과 맑은 고딕 스타일시트가 완전히 복구된 헤더 포맷
+                  # [교체할 헤더] 원하시는 주석 코드가 100% 박혀있는 고정 형태
                   target_header = (
                       "<SAMI>\\n<HEAD>\\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\\n"
                       "<STYLE TYPE=\\"text/css\\">\\n\\n</STYLE>\\n</HEAD>\\n<BODY>\\n<SYNC Start=0><P Class=KRCC>&nbsp;"
@@ -121,48 +117,4 @@ jobs:
                               content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
 
                           if self.fix_header_done:
-                              # 2. 지긋지긋한 본문 주석 2줄까지 세트로 묶어서 통째로 삭제
-                              pattern = r'(?is)<SAMI>.*?(?:<--\\s*Open\\s+tools\\s+menu.*?-->|<--\\s*Open\\s+play\\s+menu.*?-->\\s*<--\\s*Open\\s+tools.*?-->)'
-                              if re.search(pattern, content):
-                                  content = re.sub(pattern, target_header, content, count=1)
-                              else:
-                                  if re.search(r'(?i)<BODY>', content):
-                                      content = re.sub(r'(?is)<SAMI>.*?<BODY>', target_header, content, count=1)
-                                  else:
-                                      content = target_header + "\\n" + content
-
-                          if self.fix_newline_done:
-                              content = re.sub(r'(<P Class=KRCC>)(?!\\s*&nbsp;)([^\\s\\r\\n])', r'\\1\\n\\2', content, flags=re.IGNORECASE)
-                              content = re.sub(r'(?i)(<br>)[ \\t]*([^\\r\\n<>])', r'\\1\\n\\2', content)
-
-                          with open(filepath, 'w', encoding='cp949', errors='replace') as f:
-                              f.write(content)
-                          
-                          success_count += 1
-                      except Exception as e:
-                          self.log(f"[Error] {os.path.basename(filepath)}: {str(e)}")
-
-                  self.log(f"=== SUCCESS: {success_count} files processed ===")
-                  messagebox.showinfo("Success", f"{success_count} files saved!")
-                  self.file_list = []
-                  self.listbox.delete(0, tk.END)
-                  self.fix_krcc_done = self.fix_header_done = self.fix_newline_done = False
-
-          if __name__ == "__main__":
-              root = TkinterDnD.Tk()
-              app = SMIEditorApp(root)
-              root.mainloop()
-          """
-
-          with open("smi_editor.py", "w", encoding="utf-8") as f:
-              f.write(code_content)
-              
-      - name: Build with PyInstaller
-        run: |
-          pyinstaller --noconsole --onefile --collect-all tkinterdnd2 smi_editor.py          
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SMI_Editor_Program
-          path: dist/smi_editor.exe
+                              # 정규식 오작동을 피하기 위해, 원본 자막에서 지워야 할 텍스트 블록의 시작과 끝을 명
