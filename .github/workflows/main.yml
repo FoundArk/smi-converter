@@ -97,12 +97,12 @@ jobs:
 
                   success_count = 0
                   
-                  # [핵심] 가상서버 검열을 피하기 위해 '맑은 고딕', '굴림', '한국어'라는 글자를 유니코드 바이패스로 완벽 복원합니다.
-                  font_malgun = b'\xeb\xa\x9d\xec\x9d\x80 \xea\xb3\xa0\xeb\x94\x95'.decode('utf-8')
-                  font_gulim = b'\xea\xb5\xbc\xeb\xa6\xbc'.decode('utf-8')
-                  lang_kr = b'\xed\x95\xbc\xea\xb5\xad\xec\x96\xb4'.decode('utf-8')
+                  # 인코딩 검열을 원천 차단하기 위해 '맑은 고딕', '굴림', '한국어' 글자를 아스키 코드 번호 조합으로 빌드 후 복원합니다.
+                  font_malgun = "".join([chr(47569), chr(51008), chr(32), chr(44256), chr(46356)]) # 맑은 고딕
+                  font_gulim = "".join([chr(44404), chr(47548)]) # 굴림
+                  lang_kr = "".join([chr(54620), chr(44397), chr(50612)]) # 한국어
                   
-                  # 줄바꿈과 주석 기호가 100% 보존되는 안전한 문자열 조립 방식입니다.
+                  # 주석() 기호와 문자열 구조가 완벽하게 살아있는 타겟 헤더 데이터입니다.
                   target_header = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n"
                   target_header += "<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
 
