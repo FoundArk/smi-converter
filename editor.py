@@ -42,7 +42,8 @@ class SMIEditor:
             with open(path, 'w', encoding='utf-8-sig') as f: f.write(content)
         messagebox.showinfo("완료", "줄바꿈 최적화 완료")
 
-    def fix_header(self):
+def fix_header(self):
+        # 1. 삽입할 헤더 (Raw String으로 기호 유지)
         new_header = r"""<SAMI>
 <HEAD>
 <TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>
@@ -51,11 +52,31 @@ class SMIEditor:
 </HEAD>
 <BODY>
 <SYNC Start=0><P Class=KRCC>&nbsp;"""
+
         for path in self.file_list:
-            with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f: content = f.read()
-            # <SAMI>부터 <BODY> 이후 주석 2줄까지를 통째로 정규식으로 삭제하고 새 헤더 삽입
-            content = re.sub(r'(?is)<SAMI>.*?(?:<--.*?-->\s*<--.*?-->|<BODY>)', new_header, content, count=1)
-            with open(path, 'w', encoding='utf-8-sig') as f: f.write(content)
+            try:
+                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f: 
+                    content = f.read()
+                
+                # 2. 헤더 작업: <SAMI>부터 원본 주석 2줄까지를 정확하게 매칭해서 제거
+                # 정규식 설명: <SAMI>부터 시작해서 <BODY>를 지나고 주석 2줄이 끝나는 지점까지 찾음
+                pattern = r'(?is)<SAMI>.*?(?:<--\s*Open\s+tools\s+menu.*?-->\s*|(?=<BODY>))'
+                
+                # 먼저 기존 헤더를 싹 지우고, <BODY> 뒤의 쓸데없는 주석 2줄도 찾아 제거
+                content = re.sub(pattern, "", content, count=1)
+                content = re.sub(r'(?is)<--\s*Open\s+play\s+menu.*?-->\s*<--\s*Open\s+tools\s+menu.*?-->', "", content)
+                
+                # 3. 새로운 헤더와 결합
+                # <BODY> 태그가 날아갔을 수 있으니 보장하고 헤더 삽입
+                if "<BODY>" not in content.upper():
+                    content = "<BODY>\n" + content
+                
+                final_content = new_header + "\n" + content
+                
+                with open(path, 'w', encoding='utf-8-sig') as f: 
+                    f.write(final_content)
+            except Exception as e:
+                print(f"Error: {e}")
         messagebox.showinfo("완료", "헤더 교체 완료")
 
 if __name__ == "__main__":
