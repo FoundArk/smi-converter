@@ -1,0 +1,35 @@
+name: Build SMI Editor EXE
+on: [workflow_dispatch] # 버튼을 누르면 수동으로 실행되도록 설정
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install tkinterdnd2 pyinstaller
+          
+      - name: Create Python Script
+        shell: bash
+        run: |
+          cat << 'EOF' > smi_editor.py
+          # 여기에 소스코드가 들어갑니다. 아래 코드를 지우지 마세요.
+          EOF
+          
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --noconsole --onefile --collect-all tkinterdnd2 smi_editor.py
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMI_Editor_Program
+          path: dist/smi_editor.exe
