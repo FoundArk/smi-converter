@@ -20,7 +20,6 @@ jobs:
       - name: Create Python Script
         shell: powershell
         run: |
-          # 파일 생성 시 인코딩 문제를 원천 차단하기 위해 파이썬 안에서 줄바꿈과 한글을 직접 조립합니다.
           $py_code = @'
           import os
           import re
@@ -98,18 +97,11 @@ jobs:
 
                   success_count = 0
                   
-                  # 깃허브 액션 환경에서 절대로 유실되지 않도록 쪼개서 결합하는 안전한 타겟 헤더 구조
-                  h = []
-                  h.append("<SAMI>")
-                  h.append("<HEAD>")
-                  h.append("<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>")
-                  h.append("<STYLE TYPE=\"text/css\">")
-                  h.append("")
-                  h.append("</STYLE>")
-                  h.append("</HEAD>")
-                  h.append("<BODY>")
-                  h.append("<SYNC Start=0><P Class=KRCC>&nbsp;")
-                  target_header = "\n".join(h)
+                  # 문제의 원인이었던 이스케이프와 정규식 치환 대상 문제를 완전히 청소한 고정 헤더 문자열
+                  target_header = (
+                      "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n"
+                      "<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>"
+                  )
 
                   for filepath in self.file_list:
                       try:
@@ -124,20 +116,21 @@ jobs:
                           
                           if not content: continue
 
-                          # 1. KRCC Fix 로직 (KOKRCC나 KOKR을 표준 KRCC로 통일)
+                          # 1. KRCC Fix 로직
                           if self.fix_krcc_done:
                               content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
                               content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
 
-                          # 2. Header Fix 로직 (요구하신 스타일시트와 주석 블록이 100% 들어간 헤더로 완전 치환)
+                          # 2. Header Fix 로직 (버그를 유발하던 유연 매칭을 버리고 확실하게 <SAMI>부터 <BODY> 전까지를 교체)
                           if self.fix_header_done:
-                              pattern = r'(?i)<SAMI>.*?(?:<--\s*Open tools menu,\s*Security,\s*Show local captions when present\s*-->)'
-                              if re.search(pattern, content, flags=re.DOTALL):
-                                  content = re.sub(pattern, target_header, content, count=1, flags=re.DOTALL)
-                              else:
+                              # 기존 파일에 <BODY>가 있는지 대소문자 구분 없이 확인
+                              if re.search(r'(?i)<BODY>', content):
                                   content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header, content, count=1, flags=re.DOTALL)
+                              else:
+                                  # 만약 <BODY> 태그가 없는 비표준 파일일 경우 최상단 기존 헤더 파트를 강제 교체
+                                  content = target_header + "\n" + content
 
-                          # 3. Newline Fix 로직 (자막 줄바꿈 가독성 개선 정규식)
+                          # 3. Newline Fix 로직
                           if self.fix_newline_done:
                               content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
                               content = re.sub(r'(?i)(<br>)[ \t]*([^\r\n<>])', r'\1\n\2', content)
@@ -163,7 +156,6 @@ jobs:
               root.mainloop()
           '@
           
-          # UTF-8 인코딩을 명시하여 한글 깨짐 없이 스크립트 파일을 안전하게 저장합니다.
           [System.IO.File]::WriteAllText("$pwd\smi_editor.py", $py_code, [System.Text.Encoding]::UTF8)
 
       - name: Build with PyInstaller
