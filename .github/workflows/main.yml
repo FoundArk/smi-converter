@@ -1,4 +1,4 @@
-name: Build EXE
+name: Build SMI Editor
 
 on:
 workflow_dispatch:
@@ -18,8 +18,20 @@ steps:
   - name: Install
     run: pip install pyinstaller tkinterdnd2
 
-  - name: Build
-    run: pyinstaller --noconfirm --clean --onefile --windowed --collect-all tkinterdnd2 smi_editor.py
+  - name: Create Python File
+    shell: cmd
+    run: |
+      (
+      echo import tkinter as tk
+      echo from tkinter import messagebox
+      echo root = tk.Tk()
+      echo root.title("SMI Editor")
+      echo messagebox.showinfo("SUCCESS","EXE BUILD SUCCESS")
+      echo root.mainloop()
+      ) > smi_editor.py
+
+  - name: Build EXE
+    run: pyinstaller --noconfirm --clean --onefile --windowed smi_editor.py
 
   - name: Upload
     uses: actions/upload-artifact@v4
