@@ -1,50 +1,54 @@
-name: Build SMI Editor EXE
-on: [workflow_dispatch]
+name: Build Windows EXE
+
+on:
+push:
+branches:
+- main
+workflow_dispatch:
+
+permissions:
+contents: write
 
 jobs:
-  build:
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install pyinstaller
-      
-      - name: Write Python Code
-        shell: cmd
-        run: |
-          echo import os, re, tkinter as tk > smi_editor.py
-          echo from tkinter import filedialog, messagebox >> smi_editor.py
-          echo class SMIEditor: >> smi_editor.py
-          echo  def __init__(self, root): >> smi_editor.py
-          echo   self.root = root >> smi_editor.py
-          echo   self.root.title("SMI Editor") >> smi_editor.py
-          echo   self.root.geometry("300x150") >> smi_editor.py
-          echo   tk.Button(root, text="SMI 파일 선택 및 변환", command=self.process).pack(pady=50) >> smi_editor.py
-          echo  def process(self): >> smi_editor.py
-          echo   files = filedialog.askopenfilenames(filetypes=[("SMI files", "*.smi")]) >> smi_editor.py
-          echo   if not files: return >> smi_editor.py
-          echo   target = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;" >> smi_editor.py
-          echo   for path in files: >> smi_editor.py
-          echo    try: >> smi_editor.py
-          echo     with open(path, 'r', encoding='cp949', errors='ignore') as f: content = f.read() >> smi_editor.py
-          echo     content = re.sub(r'(?is)<SAMI>.*?(<--.*?-->\s*<--.*?-->|<BODY>)', target, content, count=1) >> smi_editor.py
-          echo     content = re.sub(r'KOKRCC|KOKR', 'KRCC', content, flags=re.IGNORECASE) >> smi_editor.py
-          echo     content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE) >> smi_editor.py
-          echo     with open(path, 'w', encoding='cp949') as f: f.write(content) >> smi_editor.py
-          echo    except: pass >> smi_editor.py
-          echo   messagebox.showinfo("완료", "처리 완료!") >> smi_editor.py
-          echo root = tk.Tk() >> smi_editor.py
-          echo SMIEditor(root) >> smi_editor.py
-          echo root.mainloop() >> smi_editor.py
+build:
+runs-on: windows-latest
 
-      - name: Build EXE
-        run: python -m PyInstaller --noconsole --onefile smi_editor.py
-      
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: SMI_Editor_Final
-          path: dist/smi_editor.exe
+```
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+
+  - name: Install dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install pyinstaller
+
+      if (Test-Path requirements.txt) {
+        pip install -r requirements.txt
+      }
+
+  - name: Build EXE
+    run: |
+      pyinstaller --onefile --windowed main.py
+
+  - name: Upload Artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: subtitle-converter-exe
+      path: dist/*.exe
+
+  - name: Create Release ZIP
+    run: |
+      Compress-Archive -Path dist/*.exe -DestinationPath subtitle-converter.zip
+
+  - name: Release
+    uses: softprops/action-gh-release@v2
+    if: startsWith(github.ref, 'refs/tags/')
+    with:
+      files: subtitle-converter.zip
+```
