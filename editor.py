@@ -18,6 +18,12 @@ class SMIEditor:
         self.tree.column("File Name", width=400)
         self.tree.column("Status", width=120)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # --- 드래그 앤 드롭 핵심 수정 부분 ---
+        self.tree.drop_target_register(DND_FILES)
+        self.tree.dnd_bind('<<Drop>>', self.drop_files)
+        # -----------------------------------
+        
         self.tree.bind('<F5>', self.clear_list) # F5로 초기화
 
         # 2. 상태 메시지 라벨 (좌측 정렬)
