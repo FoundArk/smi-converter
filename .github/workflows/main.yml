@@ -17,9 +17,10 @@ jobs:
         run: |
           pip install tkinterdnd2 pyinstaller          
 
-      - name: Build Python Script
+      - name: Create Python Script
         shell: powershell
         run: |
+          $utf8 = [System.Text.Encoding]::UTF8
           $code = @'
           import os
           import re
@@ -57,7 +58,7 @@ jobs:
                   
                   self.log_area = scrolledtext.ScrolledText(root, width=75, height=6, font=("Consolas", 9))
                   self.log_area.pack(pady=5)
-                  self.log_area.insert(tk.END, "Program Ready.\n1. Drag and Drop SMI files.\n2. Click FIX buttons (3, 4, 5).\n3. Click 6. SAVE ALL to apply changes.\n")
+                  self.log_area.insert(tk.END, "Program Ready.\n")
 
               def drop_files(self, event):
                   files = self.root.tk.splitlist(event.data)
@@ -97,14 +98,8 @@ jobs:
 
                   success_count = 0
                   
-                  # 인코딩 검열을 원천 차단하기 위해 '맑은 고딕', '굴림', '한국어' 글자를 아스키 코드 번호 조합으로 빌드 후 복원합니다.
-                  font_malgun = "".join([chr(47569), chr(51008), chr(32), chr(44256), chr(46356)]) # 맑은 고딕
-                  font_gulim = "".join([chr(44404), chr(47548)]) # 굴림
-                  lang_kr = "".join([chr(54620), chr(44397), chr(50612)]) # 한국어
-                  
-                  # 주석() 기호와 문자열 구조가 완벽하게 살아있는 타겟 헤더 데이터입니다.
-                  target_header = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n"
-                  target_header += "<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
+                  # 변형이나 유실이 없도록 순수 Raw String 구조로 완벽히 고정된 타겟 헤더입니다.
+                  target_header = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
 
                   for filepath in self.file_list:
                       try:
@@ -143,7 +138,7 @@ jobs:
                           self.log(f"[Error] {os.path.basename(filepath)}: {str(e)}")
 
                   self.log(f"=== SUCCESS: {success_count} files processed ===")
-                  messagebox.showinfo("Success", f"{success_count} files successfully saved!")
+                  messagebox.showinfo("Success", f"{success_count} files saved!")
                   
                   self.file_list = []
                   self.listbox.delete(0, tk.END)
@@ -154,7 +149,7 @@ jobs:
               app = SMIEditorApp(root)
               root.mainloop()
           '@
-          $code | Out-File -FilePath smi_editor.py -Encoding ascii
+          [System.IO.File]::WriteAllText("$pwd\smi_editor.py", $code, $utf8)
 
       - name: Build with PyInstaller
         run: |
