@@ -3,7 +3,7 @@ on: [workflow_dispatch]
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -13,147 +13,151 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Install dependencies
+      - name: Install Dependencies and Wine
         run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y wine64 wine32
           pip install tkinterdnd2 pyinstaller          
 
-      - name: Create Python Script
-        shell: powershell
+      - name: Create Python Script Safely
         run: |
-          $utf8 = [System.Text.Encoding]::UTF8
-          $code = @'
-          import os
-          import re
-          import tkinter as tk
-          from tkinter import messagebox, scrolledtext
-          from tkinterdnd2 import DND_FILES, TkinterDnD
+          cat << 'EOF' > smi_editor.py
+import os
+import re
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
-          class SMIEditorApp:
-              def __init__(self, root):
-                  self.root = root
-                  self.root.title("SMI Batch Editor (Offline)")
-                  self.root.geometry("600x500")
-                  
-                  self.file_list = []
-                  
-                  label = tk.Label(root, text="Drag & Drop SMI files here (Max 200 files)", font=("Arial", 10, "bold"))
-                  label.pack(pady=5)
-                  
-                  self.listbox = tk.Listbox(root, selectmode=tk.MULTIPLE, width=75, height=15)
-                  self.listbox.pack(pady=5)
-                  self.listbox.drop_target_register(DND_FILES)
-                  self.listbox.dnd_bind('<<Drop>>', self.drop_files)
-                  
-                  btn_frame = tk.Frame(root)
-                  btn_frame.pack(pady=10)
-                  
-                  self.fix_krcc_done = False
-                  self.fix_header_done = False
-                  self.fix_newline_done = False
-                  
-                  tk.Button(btn_frame, text="5. KRCC Fix", width=12, command=self.action_fix_krcc, bg="#e1f5fe").grid(row=0, column=0, padx=5)
-                  tk.Button(btn_frame, text="3. Header Fix", width=12, command=self.action_fix_header, bg="#e8f5e9").grid(row=0, column=1, padx=5)
-                  tk.Button(btn_frame, text="4. Newline Fix", width=12, command=self.action_fix_newline, bg="#fffde7").grid(row=0, column=2, padx=5)
-                  tk.Button(btn_frame, text="6. SAVE ALL", width=12, command=self.action_save_all, bg="#ffe0b2", font=("Arial", 9, "bold")).grid(row=0, column=3, padx=5)
-                  
-                  self.log_area = scrolledtext.ScrolledText(root, width=75, height=6, font=("Consolas", 9))
-                  self.log_area.pack(pady=5)
-                  self.log_area.insert(tk.END, "Program Ready.\n")
+class SMIEditorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SMI Batch Editor (Offline)")
+        self.root.geometry("600x500")
+        
+        self.file_list = []
+        
+        label = tk.Label(root, text="Drag & Drop SMI files here (Max 200 files)", font=("Arial", 10, "bold"))
+        label.pack(pady=5)
+        
+        self.listbox = tk.Listbox(root, selectmode=tk.MULTIPLE, width=75, height=15)
+        self.listbox.pack(pady=5)
+        self.listbox.drop_target_register(DND_FILES)
+        self.listbox.dnd_bind('<<Drop>>', self.drop_files)
+        
+        btn_frame = tk.Frame(root)
+        btn_frame.pack(pady=10)
+        
+        self.fix_krcc_done = False
+        self.fix_header_done = False
+        self.fix_newline_done = False
+        
+        tk.Button(btn_frame, text="5. KRCC Fix", width=12, command=self.action_fix_krcc, bg="#e1f5fe").grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame, text="3. Header Fix", width=12, command=self.action_fix_header, bg="#e8f5e9").grid(row=0, column=1, padx=5)
+        tk.Button(btn_frame, text="4. Newline Fix", width=12, command=self.action_fix_newline, bg="#fffde7").grid(row=0, column=2, padx=5)
+        tk.Button(btn_frame, text="6. SAVE ALL", width=12, command=self.action_save_all, bg="#ffe0b2", font=("Arial", 9, "bold")).grid(row=0, column=3, padx=5)
+        
+        self.log_area = scrolledtext.ScrolledText(root, width=75, height=6, font=("Consolas", 9))
+        self.log_area.pack(pady=5)
+        self.log_area.insert(tk.END, "Program Ready.\n")
 
-              def drop_files(self, event):
-                  files = self.root.tk.splitlist(event.data)
-                  for f in files:
-                      if f.lower().endswith('.smi') and f not in self.file_list:
-                          if len(self.file_list) >= 200:
-                              messagebox.showwarning("Warning", "Max 200 files allowed.")
-                              break
-                          self.file_list.append(f)
-                          self.listbox.insert(tk.END, os.path.basename(f))
-                  self.log(f"Added files: {len(self.file_list)}")
+    def drop_files(self, event):
+        files = self.root.tk.splitlist(event.data)
+        for f in files:
+            if f.lower().endswith('.smi') and f not in self.file_list:
+                if len(self.file_list) >= 200:
+                    messagebox.showwarning("Warning", "Max 200 files allowed.")
+                    break
+                self.file_list.append(f)
+                self.listbox.insert(tk.END, os.path.basename(f))
+        self.log(f"Added files: {len(self.file_list)}")
 
-              def log(self, text):
-                  self.log_area.insert(tk.END, text + "\n")
-                  self.log_area.see(tk.END)
+    def log(self, text):
+        self.log_area.insert(tk.END, text + "\n")
+        self.log_area.see(tk.END)
 
-              def action_fix_krcc(self):
-                  if not self.file_list: return
-                  self.fix_krcc_done = True
-                  self.log("[Ready] 5. KRCC Fix enabled.")
+    def action_fix_krcc(self):
+        if not self.file_list: return
+        self.fix_krcc_done = True
+        self.log("[Ready] 5. KRCC Fix enabled.")
 
-              def action_fix_header(self):
-                  if not self.file_list: return
-                  self.fix_header_done = True
-                  self.log("[Ready] 3. Header Fix enabled.")
+    def action_fix_header(self):
+        if not self.file_list: return
+        self.fix_header_done = True
+        self.log("[Ready] 3. Header Fix enabled.")
 
-              def action_fix_newline(self):
-                  if not self.file_list: return
-                  self.fix_newline_done = True
-                  self.log("[Ready] 4. Newline Fix enabled.")
+    def action_fix_newline(self):
+        if not self.file_list: return
+        self.fix_newline_done = True
+        self.log("[Ready] 4. Newline Fix enabled.")
 
-              def action_save_all(self):
-                  if not self.file_list: return
-                  if not (self.fix_krcc_done or self.fix_header_done or self.fix_newline_done):
-                      messagebox.showwarning("Warning", "Please select at least one Fix button.")
-                      return
+    def action_save_all(self):
+        if not self.file_list: return
+        if not (self.fix_krcc_done or self.fix_header_done or self.fix_newline_done):
+            messagebox.showwarning("Warning", "Please select at least one Fix button.")
+            return
 
-                  success_count = 0
-                  
-                  # 변형이나 유실이 없도록 순수 Raw String 구조로 완벽히 고정된 타겟 헤더입니다.
-                  target_header = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
+        success_count = 0
+        
+        style_block = "<STYLE TYPE=\"text/css\">\n"
+        style_block += "\n"
+        style_block += "</STYLE>"
 
-                  for filepath in self.file_list:
-                      try:
-                          content = ""
-                          for encoding in ['cp949', 'utf-8-sig', 'utf-8', 'euc-kr']:
-                              try:
-                                  with open(filepath, 'r', encoding=encoding) as f:
-                                      content = f.read()
-                                  break
-                              except UnicodeDecodeError:
-                                  continue
-                          
-                          if not content: continue
+        target_header = f"<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n{style_block}\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
 
-                          if self.fix_krcc_done:
-                              content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
-                              content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
+        for filepath in self.file_list:
+            try:
+                content = ""
+                for encoding in ['cp949', 'utf-8-sig', 'utf-8', 'euc-kr']:
+                    try:
+                        with open(filepath, 'r', encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if not content: continue
 
-                          if self.fix_header_done:
-                              pattern = r'(?i)<SAMI>.*?(?:<--\s*Open tools menu,\s*Security,\s*Show local captions when present\s*-->)'
-                              if re.search(pattern, content, flags=re.DOTALL):
-                                  content = re.sub(pattern, target_header, content, count=1, flags=re.DOTALL)
-                              else:
-                                  content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header, content, count=1, flags=re.DOTALL)
+                if self.fix_krcc_done:
+                    content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
+                    content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
 
-                          if self.fix_newline_done:
-                              content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
-                              content = re.sub(r'(?i)(<br>)[ \t]*([^\r\n<>])', r'\1\n\2', content)
+                if self.fix_header_done:
+                    pattern = r'(?i)<SAMI>.*?(?:<--\s*Open tools menu,\s*Security,\s*Show local captions when present\s*-->)'
+                    if re.search(pattern, content, flags=re.DOTALL):
+                        content = re.sub(pattern, target_header, content, count=1, flags=re.DOTALL)
+                    else:
+                        content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header, content, count=1, flags=re.DOTALL)
 
-                          with open(filepath, 'w', encoding='cp949', errors='replace') as f:
-                              f.write(content)
-                          
-                          success_count += 1
-                          
-                      except Exception as e:
-                          self.log(f"[Error] {os.path.basename(filepath)}: {str(e)}")
+                if self.fix_newline_done:
+                    content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+                    content = re.sub(r'(?i)(<br>)[ \t]*([^\r\n<>])', r'\1\n\2', content)
 
-                  self.log(f"=== SUCCESS: {success_count} files processed ===")
-                  messagebox.showinfo("Success", f"{success_count} files saved!")
-                  
-                  self.file_list = []
-                  self.listbox.delete(0, tk.END)
-                  self.fix_krcc_done = self.fix_header_done = self.fix_newline_done = False
+                with open(filepath, 'w', encoding='cp949', errors='replace') as f:
+                    f.write(content)
+                
+                success_count += 1
+                
+            except Exception as e:
+                self.log(f"[Error] {os.path.basename(filepath)}: {str(e)}")
 
-          if __name__ == "__main__":
-              root = TkinterDnD.Tk()
-              app = SMIEditorApp(root)
-              root.mainloop()
-          '@
-          [System.IO.File]::WriteAllText("$pwd\smi_editor.py", $code, $utf8)
+        self.log(f"=== SUCCESS: {success_count} files processed ===")
+        messagebox.showinfo("Success", f"{success_count} files saved!")
+        
+        self.file_list = []
+        self.listbox.delete(0, tk.END)
+        self.fix_krcc_done = self.fix_header_done = self.fix_newline_done = False
 
-      - name: Build with PyInstaller
+if __name__ == "__main__":
+    root = TkinterDnD.Tk()
+    app = SMIEditorApp(root)
+    root.mainloop()
+EOF
+
+      - name: Build Windows EXE via Wine
         run: |
-          pyinstaller --noconsole --onefile --collect-all tkinterdnd2 smi_editor.py          
+          wine pip install tkinterdnd2 pyinstaller
+          wine pyinstaller --noconsole --onefile --collect-all tkinterdnd2 smi_editor.py          
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
