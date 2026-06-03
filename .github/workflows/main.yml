@@ -1,4 +1,4 @@
-name: Build EXE and Upload
+name: Build SMI Editor EXE
 
 on:
 push:
@@ -11,55 +11,320 @@ contents: write
 
 jobs:
 build:
-runs-on: windows-latest
+runs-on: windows-2022
 
 ```
 steps:
-  - name: Checkout repository
+  - name: Checkout code
     uses: actions/checkout@v4
 
-  - name: Setup Python
+  - name: Set up Python
     uses: actions/setup-python@v5
     with:
-      python-version: '3.11'
-
-  - name: Upgrade pip
-    run: python -m pip install --upgrade pip
+      python-version: "3.11"
 
   - name: Install dependencies
-    shell: pwsh
+    shell: powershell
     run: |
-      pip install pyinstaller
+      python -m pip install --upgrade pip
+      pip install pyinstaller tkinterdnd2
 
-      if (Test-Path "requirements.txt") {
-        pip install -r requirements.txt
-      }
+  - name: Create Python Script
+    shell: powershell
+    run: |
+      @'
+```
 
+import os
+import re
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
+from tkinterdnd2 import DND_FILES, TkinterDnD
+
+TARGET_HEADER = """<SAMI>
+
+<HEAD>
+
+<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>
+
+<STYLE TYPE="text/css">
+
+<!--
+
+P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;
+   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;
+   font-weight:Bold; color:white;}
+
+.KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}
+
+-->
+
+</STYLE>
+
+</HEAD>
+
+<BODY>
+
+<SYNC Start=0><P Class=KRCC> 
+"""
+
+class SMIEditorApp:
+def **init**(self, root):
+self.root = root
+self.root.title("SMI Batch Editor")
+self.root.geometry("700x550")
+
+```
+    self.file_list = []
+
+    label = tk.Label(
+        root,
+        text="Drag & Drop SMI files here (Max 200 files)",
+        font=("Arial", 10, "bold")
+    )
+    label.pack(pady=5)
+
+    self.listbox = tk.Listbox(
+        root,
+        selectmode=tk.MULTIPLE,
+        width=90,
+        height=18
+    )
+    self.listbox.pack(pady=5)
+
+    self.listbox.drop_target_register(DND_FILES)
+    self.listbox.dnd_bind("<<Drop>>", self.drop_files)
+
+    btn_frame = tk.Frame(root)
+    btn_frame.pack(pady=10)
+
+    tk.Button(
+        btn_frame,
+        text="KRCC Fix",
+        width=15,
+        command=self.fix_krcc
+    ).grid(row=0, column=0, padx=5)
+
+    tk.Button(
+        btn_frame,
+        text="Header Fix",
+        width=15,
+        command=self.fix_header
+    ).grid(row=0, column=1, padx=5)
+
+    tk.Button(
+        btn_frame,
+        text="Newline Fix",
+        width=15,
+        command=self.fix_newline
+    ).grid(row=0, column=2, padx=5)
+
+    tk.Button(
+        btn_frame,
+        text="SAVE ALL",
+        width=15,
+        command=self.save_all
+    ).grid(row=0, column=3, padx=5)
+
+    self.log_area = scrolledtext.ScrolledText(
+        root,
+        width=85,
+        height=10
+    )
+    self.log_area.pack(pady=5)
+
+    self.log("Program Ready.")
+
+def log(self, text):
+    self.log_area.insert(tk.END, text + "\n")
+    self.log_area.see(tk.END)
+
+def drop_files(self, event):
+    files = self.root.tk.splitlist(event.data)
+
+    for f in files:
+        if (
+            f.lower().endswith(".smi")
+            and f not in self.file_list
+        ):
+            if len(self.file_list) >= 200:
+                messagebox.showwarning(
+                    "Warning",
+                    "Max 200 files allowed."
+                )
+                break
+
+            self.file_list.append(f)
+            self.listbox.insert(
+                tk.END,
+                os.path.basename(f)
+            )
+
+    self.log(f"Added files: {len(self.file_list)}")
+
+def read_file(self, filepath):
+    encodings = [
+        "utf-8-sig",
+        "utf-8",
+        "cp949",
+        "euc-kr"
+    ]
+
+    for enc in encodings:
+        try:
+            with open(filepath, "r", encoding=enc) as f:
+                return f.read()
+        except:
+            continue
+
+    return None
+
+def fix_krcc(self):
+    self.log("KRCC Fix Enabled")
+
+def fix_header(self):
+    self.log("Header Fix Enabled")
+
+def fix_newline(self):
+    self.log("Newline Fix Enabled")
+
+def process_content(self, content):
+
+    # KRCC Fix
+    content = re.sub(
+        r'KOKRCC|KOKR',
+        'KRCC',
+        content,
+        flags=re.IGNORECASE
+    )
+
+    # Header Replace
+    if re.search(r'(?i)<BODY>', content):
+        content = re.sub(
+            r'(?is)<SAMI>.*?<BODY>',
+            TARGET_HEADER,
+            content,
+            count=1
+        )
+    else:
+        content = TARGET_HEADER + "\n" + content
+
+    # Normalize BR
+    content = re.sub(
+        r'(?i)<BR>',
+        '<br>',
+        content
+    )
+
+    # <P Class=KRCC> newline
+    content = re.sub(
+        r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n<])',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+
+    # &nbsp; newline
+    content = re.sub(
+        r'(&nbsp;)([^\r\n<])',
+        r'\1\n\2',
+        content
+    )
+
+    # <br> newline
+    content = re.sub(
+        r'(<br>)([^\r\n<])',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+
+    # remove excessive newlines
+    content = re.sub(
+        r'\n{3,}',
+        '\n\n',
+        content
+    )
+
+    return content
+
+def save_all(self):
+
+    if not self.file_list:
+        messagebox.showwarning(
+            "Warning",
+            "No files selected."
+        )
+        return
+
+    success = 0
+
+    for filepath in self.file_list:
+
+        try:
+            content = self.read_file(filepath)
+
+            if not content:
+                self.log(f"Failed: {filepath}")
+                continue
+
+            content = self.process_content(content)
+
+            with open(
+                filepath,
+                "w",
+                encoding="cp949",
+                errors="replace"
+            ) as f:
+                f.write(content)
+
+            success += 1
+
+        except Exception as e:
+            self.log(f"ERROR: {filepath} / {str(e)}")
+
+    self.log(f"SUCCESS: {success} files processed")
+
+    messagebox.showinfo(
+        "Complete",
+        f"{success} files processed."
+    )
+```
+
+if **name** == "**main**":
+root = TkinterDnD.Tk()
+app = SMIEditorApp(root)
+root.mainloop()
+'@ | Out-File -Encoding utf8 smi_editor.py
+
+```
   - name: Build EXE
     run: |
-      pyinstaller --clean --noconfirm --onefile --windowed main.py
-
-  - name: Check dist folder
-    run: |
-      dir dist
+      pyinstaller ^
+        --noconfirm ^
+        --clean ^
+        --onefile ^
+        --windowed ^
+        --collect-all tkinterdnd2 ^
+        smi_editor.py
 
   - name: Create ZIP
-    shell: pwsh
+    shell: powershell
     run: |
-      Compress-Archive -Path "dist/*" -DestinationPath "subtitle-converter.zip"
+      Compress-Archive -Path "dist\*" -DestinationPath "SMI_Editor.zip"
 
   - name: Upload Artifact
     uses: actions/upload-artifact@v4
     with:
-      name: subtitle-converter
-      path: subtitle-converter.zip
+      name: SMI_Editor
+      path: SMI_Editor.zip
 
   - name: Create Release
     uses: softprops/action-gh-release@v2
     with:
       tag_name: auto-build
       name: Auto Build
-      files: subtitle-converter.zip
+      files: SMI_Editor.zip
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
