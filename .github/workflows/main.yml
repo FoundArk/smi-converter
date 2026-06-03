@@ -9,8 +9,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install dependencies
-        run: pip install tkinterdnd2 pyinstaller
+      - name: Install pyinstaller
+        run: pip install pyinstaller
       
       - name: Write Python Code
         shell: python
@@ -18,52 +18,53 @@ jobs:
           with open("smi_editor.py", "w", encoding="utf-8") as f:
             f.write(r"""
 import os, re, tkinter as tk
-from tkinter import messagebox, scrolledtext
-from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinter import filedialog, messagebox
 
-class SMIEditorApp:
+class SMIEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("SMI Batch Editor")
-        self.root.geometry("500x300")
-        self.file_list = []
-        tk.Label(root, text="SMI 파일을 드래그하세요").pack(pady=10)
-        self.listbox = tk.Listbox(root, selectmode=tk.MULTIPLE, height=5)
-        self.listbox.pack(fill='x', padx=10)
-        self.listbox.drop_target_register(DND_FILES)
-        self.listbox.dnd_bind('<<Drop>>', self.drop_files)
-        tk.Button(root, text="모든 기능 적용 후 저장", command=self.process_all, bg="cyan").pack(pady=20)
+        self.root.title("SMI Editor V2")
+        self.root.geometry("300x150")
+        tk.Label(root, text="기능: KRCC교정, 줄바꿈 최적화, 헤더교체").pack(pady=10)
+        tk.Button(root, text="SMI 파일 선택 및 변환", command=self.process).pack(pady=20)
 
-    def drop_files(self, event):
-        files = self.root.tk.splitlist(event.data)
-        for f in files:
-            if f.endswith('.smi'): self.file_list.append(f); self.listbox.insert(tk.END, os.path.basename(f))
-
-    def process_all(self):
+    def process(self):
+        files = filedialog.askopenfilenames(filetypes=[("SMI files", "*.smi")])
+        if not files: return
+        
+        # 1. 요청하신 정확한 헤더 구조
         target = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
-        for path in self.file_list:
+        
+        for path in files:
             try:
                 with open(path, 'r', encoding='cp949', errors='ignore') as f: content = f.read()
-                # 1. 헤더 및 주석 교체
+                
+                # 2. 헤더 및 주석 교체 (기존 주석 및 헤더 삭제 후 타겟 삽입)
                 content = re.sub(r'(?is)<SAMI>.*?(<--.*?-->\s*<--.*?-->|<BODY>)', target, content, count=1)
-                # 2. KRCC Fix
+                
+                # 3. KOKRCC/KOKR -> KRCC 교정
                 content = re.sub(r'KOKRCC|KOKR', 'KRCC', content, flags=re.IGNORECASE)
-                # 3. Newline Fix
+                
+                # 4. 줄바꿈 최적화
+                # KRCC> 바로 뒤에 글자가 있으면 줄바꿈 (단, &nbsp;가 바로 붙어있으면 제외)
                 content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+                # <br> 뒤에서 줄바꿈 처리
+                content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
+                
                 with open(path, 'w', encoding='cp949') as f: f.write(content)
             except: pass
-        messagebox.showinfo("완료", "처리되었습니다.")
+        messagebox.showinfo("완료", "모든 기능이 적용되었습니다.")
 
-root = TkinterDnD.Tk()
-SMIEditorApp(root)
+root = tk.Tk()
+SMIEditor(root)
 root.mainloop()
 """)
 
-      - name: Build
-        run: pyinstaller --noconsole --onefile --collect-all tkinterdnd2 smi_editor.py
+      - name: Build EXE
+        run: pyinstaller --noconsole --onefile smi_editor.py
       
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: SMI_Editor_Full
+          name: SMI_Editor_Final
           path: dist/smi_editor.exe
