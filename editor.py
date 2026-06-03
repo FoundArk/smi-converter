@@ -1,17 +1,13 @@
 import os, re, tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 class SMIEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("SMI Editor")
-        self.root.geometry("600x600")
+        self.root.title("SMI Editor - 안전 변환 모드")
+        self.root.geometry("600x650")
         
-        # 저장 방식 (True: 덮어쓰기, False: _converted 저장)
-        self.overwrite_var = tk.BooleanVar(value=True)
-
-        # 1. 트리뷰 (상태창)
         self.tree = ttk.Treeview(root, columns=("File Name", "Status"), show="headings", height=15)
         self.tree.heading("File Name", text="File Name")
         self.tree.heading("Status", text="Status")
@@ -19,66 +15,81 @@ class SMIEditor:
         self.tree.column("Status", width=120)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # 드래그 앤 드롭 설정 (트리뷰에 직접 바인딩)
         self.tree.drop_target_register(DND_FILES)
         self.tree.dnd_bind('<<Drop>>', self.drop_files)
-        self.tree.bind('<F5>', self.clear_list) # F5로 초기화
+        self.tree.bind('<F5>', self.clear_list)
 
-        # 2. 상태 메시지 라벨 (좌측 정렬)
-        self.status_label = tk.Label(root, text="SMI 파일을 드래그하세요.", fg="blue", anchor="w")
+        self.status_label = tk.Label(root, text="파일을 드래그하고 [전체 변환]을 누르세요.", fg="blue", anchor="w")
         self.status_label.pack(fill=tk.X, padx=10)
 
-        # 3. 버튼 영역
+        # 버튼 영역
         btn_frame = tk.Frame(root)
         btn_frame.pack(pady=10)
-        tk.Checkbutton(btn_frame, text="원본 덮어쓰기", variable=self.overwrite_var).pack(side=tk.LEFT, padx=10)
-        tk.Button(btn_frame, text="KRCC 변환", command=lambda: self.process("krcc")).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="줄바꿈 최적화", command=lambda: self.process("newline")).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="헤더 일괄 교체", command=lambda: self.process("header"), bg="yellow").pack(side=tk.LEFT, padx=5)
+        
+        # 1. 전체 변환 (파일 수정 X, 메모리상에서만 변환)
+        tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue").pack(side=tk.LEFT, padx=5)
+        # 2. 저장 방식 선택
+        tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(overwrite=True), bg="lightgreen").pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="다른 이름으로 저장", command=lambda: self.save_files(overwrite=False), bg="orange").pack(side=tk.LEFT, padx=5)
 
-        self.file_data = {} # {item_id: filepath}
+        self.file_data = {}      # {item_id: filepath}
+        self.temp_contents = {}  # {item_id: 변환된 문자열}
 
     def clear_list(self, event=None):
         for item in self.tree.get_children(): self.tree.delete(item)
         self.file_data.clear()
-        self.status_label.config(text="리스트 초기화됨")
+        self.temp_contents.clear()
+        self.status_label.config(text="초기화됨")
 
     def drop_files(self, event):
         files = self.root.tk.splitlist(event.data)
         for f in files:
             if f.endswith('.smi'):
-                item = self.tree.insert("", "end", values=(os.path.basename(f), "변환 전"))
+                item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨"))
                 self.file_data[item] = f
-        self.status_label.config(text=f"{len(self.file_data)}개의 파일 대기 중")
+        self.status_label.config(text=f"{len(self.file_data)}개 파일 준비 완료")
 
-    def process(self, mode):
+    def run_all_process(self):
         for item, path in self.file_data.items():
-            self.tree.set(item, "Status", "변환 중")
-            self.root.update()
             try:
                 with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f: content = f.read()
                 
-                if mode == "krcc":
-                    content = re.sub(r'KOKRCC|KOKR', 'KRCC', content, flags=re.IGNORECASE)
-                elif mode == "newline":
-                    content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
-                    content = re.sub(r'(&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
-                    content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
-                elif mode == "header":
-                    lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
-                             '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
-                             "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
-                             ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
-                             "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
-                    idx = content.find('<SYNC')
-                    if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
+                # 1. KRCC 변환
+                content = re.sub(r'KOKRCC|KOKR', 'KRCC', content, flags=re.IGNORECASE)
+                # 2. 줄바꿈 최적화
+                content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+                content = re.sub(r'(&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+                content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
+                # 3. 헤더 교체
+                lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
+                         '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
+                         "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
+                         ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
+                         "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
+                idx = content.find('<SYNC')
+                if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
                 
-                save_path = path if self.overwrite_var.get() else path.replace(".smi", "_converted.smi")
-                with open(save_path, 'w', encoding='utf-8-sig') as f: f.write(content)
-                self.tree.set(item, "Status", "변환 완료")
+                self.temp_contents[item] = content
+                self.tree.set(item, "Status", "변환 완료(저장 대기)")
             except Exception as e:
                 self.tree.set(item, "Status", f"오류: {e}")
-        self.status_label.config(text="모든 작업 완료")
+        self.status_label.config(text="모든 파일 변환 완료. 저장 방식을 선택하세요.")
+
+    def save_files(self, overwrite):
+        for item, path in self.file_data.items():
+            if item not in self.temp_contents: continue
+            
+            if overwrite:
+                save_path = path
+            else:
+                save_path = filedialog.asksaveasfilename(initialdir=os.path.dirname(path), 
+                                                        initialfile=os.path.basename(path),
+                                                        defaultextension=".smi")
+                if not save_path: continue
+            
+            with open(save_path, 'w', encoding='utf-8-sig') as f: f.write(self.temp_contents[item])
+            self.tree.set(item, "Status", "파일 저장됨")
+        self.status_label.config(text="작업 완료")
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
