@@ -97,10 +97,16 @@ jobs:
 
                   success_count = 0
                   
-                  # 문제의 원인이었던 이스케이프와 정규식 치환 대상 문제를 완전히 청소한 고정 헤더 문자열
+                  # 사용자가 요청한 3번째 형태의 무결점 최종 헤더 포맷 구조 (개행 및 공백 완벽 보존)
                   target_header = (
-                      "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n"
-                      "<STYLE TYPE=\"text/css\">\n\n</STYLE>\n</HEAD>\n<BODY>"
+                      "<SAMI>\n<HEAD>\n"
+                      "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>\n"
+                      "<STYLE TYPE=\"text/css\">\n"
+                      "\n"
+                      "</STYLE>\n"
+                      "</HEAD>\n"
+                      "<BODY>\n"
+                      "<SYNC Start=0><P Class=KRCC>&nbsp;"
                   )
 
                   for filepath in self.file_list:
@@ -121,13 +127,13 @@ jobs:
                               content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
                               content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
 
-                          # 2. Header Fix 로직 (버그를 유발하던 유연 매칭을 버리고 확실하게 <SAMI>부터 <BODY> 전까지를 교체)
+                          # 2. Header Fix 로직 (원래 내용이 무엇이든 <SAMI>부터 <BODY> 매칭 지점까지를 정확히 잘라내어 교체)
                           if self.fix_header_done:
-                              # 기존 파일에 <BODY>가 있는지 대소문자 구분 없이 확인
                               if re.search(r'(?i)<BODY>', content):
+                                  # <SAMI> 파트부터 <BODY> 단어 자체까지를 찾아서 지정한 최종 헤더 포맷 전체로 치환합니다.
                                   content = re.sub(r'(?i)<SAMI>.*?<BODY>', target_header, content, count=1, flags=re.DOTALL)
                               else:
-                                  # 만약 <BODY> 태그가 없는 비표준 파일일 경우 최상단 기존 헤더 파트를 강제 교체
+                                  # 비표준 예외 처리
                                   content = target_header + "\n" + content
 
                           # 3. Newline Fix 로직
