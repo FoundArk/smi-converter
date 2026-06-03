@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build EXE and Upload
 
 on:
 push:
@@ -15,40 +15,51 @@ runs-on: windows-latest
 
 ```
 steps:
-  - name: Checkout
+  - name: Checkout repository
     uses: actions/checkout@v4
 
   - name: Setup Python
     uses: actions/setup-python@v5
     with:
-      python-version: "3.11"
+      python-version: '3.11'
+
+  - name: Upgrade pip
+    run: python -m pip install --upgrade pip
 
   - name: Install dependencies
+    shell: pwsh
     run: |
-      python -m pip install --upgrade pip
       pip install pyinstaller
 
-      if (Test-Path requirements.txt) {
+      if (Test-Path "requirements.txt") {
         pip install -r requirements.txt
       }
 
   - name: Build EXE
     run: |
-      pyinstaller --onefile --windowed main.py
+      pyinstaller --clean --noconfirm --onefile --windowed main.py
+
+  - name: Check dist folder
+    run: |
+      dir dist
+
+  - name: Create ZIP
+    shell: pwsh
+    run: |
+      Compress-Archive -Path "dist/*" -DestinationPath "subtitle-converter.zip"
 
   - name: Upload Artifact
     uses: actions/upload-artifact@v4
     with:
-      name: subtitle-converter-exe
-      path: dist/*.exe
+      name: subtitle-converter
+      path: subtitle-converter.zip
 
-  - name: Create Release ZIP
-    run: |
-      Compress-Archive -Path dist/*.exe -DestinationPath subtitle-converter.zip
-
-  - name: Release
+  - name: Create Release
     uses: softprops/action-gh-release@v2
-    if: startsWith(github.ref, 'refs/tags/')
     with:
+      tag_name: auto-build
+      name: Auto Build
       files: subtitle-converter.zip
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
