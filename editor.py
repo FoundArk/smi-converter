@@ -74,7 +74,7 @@ class SMIEditor:
                 issues = []
                 if r'{\an8}' in content: issues.append(r'{\an8}')
                 if r'KOKRCC' in content: issues.append(r'KOKRCC')
-                elif r'KOKR' in content: issues.append(r'KOKR')
+                if r'KOKR' in content: issues.append(r'KOKR')
                 result = ", ".join(issues) + " 발견" if issues else "이상 없음"
                 self.tree.set(item, "Review", result)
             except Exception as e:
