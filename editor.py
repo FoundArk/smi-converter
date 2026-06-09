@@ -1,18 +1,11 @@
-import os, sys, re, tkinter as tk
-# ... (위쪽 import는 동일)
+import os, re, tkinter as tk
+from tkinter import ttk, font
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 class SMIEditor:
     def __init__(self, root):
         self.root = root
-        
-        # [실행 파일 이름 가져오기]
-        # 실행 파일(.exe) 이름을 확장자 떼고 가져와서 타이틀로 설정
-        exe_name = os.path.splitext(os.path.basename(sys.executable))[0]
-        # 만약 파이썬 스크립트로 직접 실행 중이면 __file__ 이름을 가져옴
-        if exe_name == "python" or exe_name == "pythonw":
-            exe_name = os.path.splitext(os.path.basename(__file__))[0]
-        
-        self.root.title(exe_name) # 여기서 창 제목을 자동으로 설정
+        self.root.title("SMI Editor") # 복잡한 로직 제거하고 고정 타이틀 사용
         self.root.geometry("600x650")
 
         # [스타일 설정]
