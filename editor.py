@@ -108,11 +108,13 @@ class SMIEditor:
                          ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
                          "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
                 idx = content.find('<SYNC')
-            if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
-            self.temp_contents[item] = content
-            self.tree.set(item, "Status", "변환 완료")
+                if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
+                self.temp_contents[item] = content
+                self.tree.set(item, "Status", "변환 완료")
+            except Exception as e:
+                self.tree.set(item, "Status", f"오류: {e}")
         self.status_label.config(text="전체 변환 완료.")
-
+        
     def review_original(self):
         # 원본 검수 (인코딩 식별 및 태그 발견)
         for item, path in self.file_data.items():
