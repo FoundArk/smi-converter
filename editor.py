@@ -20,7 +20,6 @@ class SMIEditor:
         self.tree.heading("Status", text="Status")
         self.tree.heading("Review", text="Review")
 
-        # 초기 설정
         self.tree.column("File Name", width=250)
         self.tree.column("Status", width=100)
         self.tree.column("Review", width=150)
@@ -28,6 +27,7 @@ class SMIEditor:
         # 트리뷰 감싸는 프레임
         container = tk.Frame(root)
         container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
         # 스크롤바
         scrollbar = ttk.Scrollbar(container, orient="vertical")
         self.tree.configure(yscrollcommand=scrollbar.set)
