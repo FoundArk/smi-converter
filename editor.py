@@ -7,34 +7,39 @@ class SMIEditor:
         self.root = root
         self.root.title("SMI Editor - 안전 변환 모드")
         self.root.geometry("610x650")
-        
-        # [스타일 설정: 우측 끝 선을 보이게 하기 위한 핵심]
+
+        # [스타일 설정]
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Treeview", borderwidth=2, relief="solid")
         style.configure("Treeview.Heading", relief="raised")
 
-        # 1. 트리뷰 생성
-        self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
-        self.tree.heading("File Name", text="File Name")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Review", text="Review")
-
-        self.tree.column("File Name", width=250)
-        self.tree.column("Status", width=100)
-        self.tree.column("Review", width=150)
-
-        # 트리뷰 감싸는 프레임
+        # [컨테이너 생성]
         container = tk.Frame(root)
         container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 스크롤바
+        # [스크롤바 생성] - container 안에!
         scrollbar = ttk.Scrollbar(container, orient="vertical")
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.tree.yview)
-        # 배치 (트리뷰는 왼쪽, 스크롤바는 오른쪽)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # [트리뷰 생성] - container 안에! (yscrollcommand 연결)
+        self.tree = ttk.Treeview(container, columns=("File Name", "Status", "Review"), 
+                                 show="headings", height=15, 
+                                 yscrollcommand=scrollbar.set)
+        
+        # [스크롤바와 트리뷰 연결]
+        scrollbar.config(command=self.tree.yview)
+
+        # [트리뷰 배치] - container 안에서 왼쪽
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # [컬럼 설정]
+        self.tree.heading("File Name", text="File Name")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Review", text="Review")
+        self.tree.column("File Name", width=250)
+        self.tree.column("Status", width=100)
+        self.tree.column("Review", width=150)
 
         # 2. 바인딩
         self.tree.bind('<Double-1>', self.on_header_double_click)
