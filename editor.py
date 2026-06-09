@@ -25,9 +25,6 @@ class SMIEditor:
         
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 2. 드래그 차단 이벤트 바인딩 추가
-        self.tree.bind('<Button-1>', self.handle_click)
-
         # 2. 바인딩
         self.tree.bind('<Double-1>', self.on_header_double_click)
         self.tree.drop_target_register(DND_FILES)
