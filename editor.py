@@ -139,9 +139,19 @@ class SMIEditor:
             try:
                 with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                     content = f.read()
+                
                 issues = []
-                if any(x in content for x in [r'{\an1}', r'{\an2}', r'{\an3}', r'{\an4}', r'{\an5}', r'{\an6}', r'{\an7}', r'{\an8}', r'{\an9}']): issues.append(r'{\an*}')
-                if any(x in content.upper() for x in ['KOKRCC', 'KOKR']): issues.append(r'KOKR계열')
+                # {\an1} ~ {\an9} 각각 검사하여 발견 시 리스트에 추가
+                for i in range(1, 10):
+                    tag = r'{\an' + str(i) + r'}'
+                    if tag in content:
+                        issues.append(tag)
+                
+                # KOKR 계열 검사
+                if 'KOKRCC' in content.upper(): issues.append('KOKRCC')
+                elif 'KOKR' in content.upper(): issues.append('KOKR')
+                
+                # 발견된 항목들을 쉼표와 공백으로 연결
                 result = ", ".join(issues) + " 발견" if issues else "이상 없음"
                 self.tree.set(item, "Review", result)
             except Exception as e:
