@@ -6,46 +6,45 @@ class SMIEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("SMI Editor - 안전 변환 모드")
-        self.root.geometry("800x700")
+        self.root.geometry("800x650")
 
-        # [상단: 트리뷰]
-        top_frame = tk.Frame(root)
-        top_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        self.tree = ttk.Treeview(top_frame, columns=("File Name", "Status", "Review"), show="headings", height=12)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.tree.heading("File Name", text="File Name"); self.tree.heading("Status", text="Status"); self.tree.heading("Review", text="Review")
-        self.tree.column("File Name", width=250); self.tree.column("Status", width=120); self.tree.column("Review", width=150)
-        
-        # [하단: 좌측 버튼 5개 + 우측 로그 5줄]
-        bottom_frame = tk.Frame(root, padx=10, pady=10)
-        bottom_frame.pack(fill=tk.X)
+        # [스타일 설정]
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("Treeview", borderwidth=2, relief="solid")
+        style.configure("Treeview.Heading", relief="raised")
 
-        # 좌측 버튼 영역
-        btn_frame = tk.Frame(bottom_frame)
-        btn_frame.pack(side=tk.LEFT, padx=(0, 20))
-        
-        # 우측 로그 영역 (5줄 고정)
-        log_frame = tk.Frame(bottom_frame, relief="solid", borderwidth=1, bg="white")
-        log_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # [메인 구성]
+        # 상단 트리뷰 영역
+        self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings")
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.logs = []
-        btn_texts = ["완료 자막 검수", "전체 변환 실행", "변환 자막 검수", "덮어쓰기 저장", "다른 이름 저장"]
-        colors = ["khaki", "skyblue", "violet", "lightgreen", "orange"]
-        commands = [self.review_original, self.run_all_process, self.review_converted, 
-                    lambda: self.save_files(True), lambda: self.save_files(False)]
+        self.tree.heading("File Name", text="File Name")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Review", text="Review")
+        self.tree.column("File Name", width=300)
+        self.tree.column("Status", width=120)
+        self.tree.column("Review", width=180)
 
-        for i in range(5):
-            tk.Button(btn_frame, text=btn_texts[i], bg=colors[i], width=18, command=commands[i]).pack(pady=3)
-            log = tk.Label(log_frame, text=f"{i+1}.", anchor="w", bg="white", height=2)
-            log.pack(fill=tk.X, padx=5)
-            self.logs.append(log)
+        # 하단 상태 라벨 및 버튼 영역
+        self.status_label = tk.Label(root, text="검수 완료", fg="black", anchor="w")
+        self.status_label.pack(fill=tk.X, padx=10)
 
-        self.file_data = {}; self.temp_contents = {}
-        self.tree.drop_target_register(DND_FILES); self.tree.dnd_bind('<<Drop>>', self.drop_files)
+        btn_frame = tk.Frame(root, pady=10)
+        btn_frame.pack()
 
-    def update_log(self, idx, text):
-        self.logs[idx].config(text=f"{idx+1}. {text}")
+        # 버튼 4개 배치
+        tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="다른 이름으로 저장", command=lambda: self.save_files(False), bg="orange", width=15).pack(side=tk.LEFT, padx=5)
+
+        # [이벤트 바인딩]
+        self.tree.drop_target_register(DND_FILES)
+        self.tree.dnd_bind('<<Drop>>', self.drop_files)
+
+        self.file_data = {}
+        self.temp_contents = {}
 
     # --- 기능함수 모음 ---
     def convert_content(self, content):
@@ -86,7 +85,7 @@ class SMIEditor:
                 self.tree.set(item, "Status", "변환 완료")
             except Exception as e:
                 self.tree.set(item, "Status", f"오류: {e}")
-        self.update_log(1, "전체 변환 실행 완료: KOKR->KRCC, 줄바꿈, 헤더 교체 적용")
+        self.status_label.config(text="전체 변환 완료.")
 
     def review_original(self):
         for item, path in self.file_data.items():
@@ -102,19 +101,7 @@ class SMIEditor:
                 self.tree.set(item, "Review", ", ".join(issues) + " 발견" if issues else "이상 없음")
             except Exception as e:
                 self.tree.set(item, "Review", f"검수 실패: {e}")
-        self.update_log(0, "원본 검수 완료: {\an*}, KOKR 등 이상 유무 기록")
-
-    def review_converted(self):
-        for item, path in self.file_data.items():
-            if item not in self.temp_contents:
-                self.tree.set(item, "Review", "변환 미실행")
-                continue
-            content = self.temp_contents[item]
-            if any(x in content for x in [r'{\an', 'KOKR']):
-                self.tree.set(item, "Review", "오류: 태그 남아있음")
-            else:
-                self.tree.set(item, "Review", "변환 파일 이상 없음")
-        self.update_log(2, "변환 자막 검수 완료: 오류 유무 기록")
+        self.status_label.config(text="검수 완료")
 
     def save_files(self, overwrite):
         count = 0
@@ -128,7 +115,7 @@ class SMIEditor:
                 count += 1
             except Exception as e:
                 self.tree.set(item, "Status", f"저장 실패: {e}")
-        self.update_log(3 if overwrite else 4, f"파일 저장 방식 선택: {'덮어쓰기' if overwrite else '다른 이름 저장'} 완료")
+        self.status_label.config(text=f"총 {count}개 파일 저장 완료")
 
     def drop_files(self, event):
         files = self.root.tk.splitlist(event.data)
