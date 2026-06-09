@@ -8,11 +8,15 @@ class SMIEditor:
         self.root.title("SMI Editor - 안전 변환 모드")
         self.root.geometry("600x650")
         
-        # 1. 트리뷰 설정
+        # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
         self.tree.heading("File Name", text="File Name")
         self.tree.heading("Status", text="Status")
         self.tree.heading("Review", text="Review")
+        self.tree.column("File Name", width=300, minwidth=150, stretch=True)
+        self.tree.column("Status", width=100, minwidth=80, stretch=False)
+        self.tree.column("Review", width=200, minwidth=100, stretch=True)
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # stretch를 False로 설정하여 자동으로 늘어나는 것을 방지
         self.tree.column("File Name", width=300, minwidth=150, stretch=True)
@@ -46,19 +50,7 @@ class SMIEditor:
         self.temp_contents = {}
 
     # --- 여기서부터 아래로 모든 기능 함수들을 넣습니다 ---
-    def handle_click(self, event):
-        # 마우스로 클릭한 곳이 헤더의 구분선 영역인지 확인
-        region = self.tree.identify_region(event.x, event.y)
-        
-        if region == "separator":
-            # 3개의 컬럼 너비를 모두 합친 전체 너비
-            total_width = self.tree.column("File Name", "width") + \
-                          self.tree.column("Status", "width") + \
-                          self.tree.column("Review", "width")
-            
-            # 우측 끝 10픽셀 영역에서 클릭하면 드래그 이벤트 차단
-            if event.x > total_width - 10:
-                return "break"
+
     def on_header_double_click(self, event):
         region = self.tree.identify_region(event.x, event.y)
         if region == "heading":
