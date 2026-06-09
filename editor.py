@@ -1,6 +1,3 @@
-사용자님, 코드를 가장 안전하게 구조화하면서도 주석을 꼼꼼하게 다시 복구했습니다. 이제 빌드 오류는 없으면서, 코드의 각 부분이 무엇을 의미하는지 명확히 알 수 있습니다.
-
-Python
 import os, re, tkinter as tk
 from tkinter import ttk, font
 from tkinterdnd2 import DND_FILES, TkinterDnD
