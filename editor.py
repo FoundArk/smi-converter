@@ -24,8 +24,17 @@ class SMIEditor:
         self.tree.column("File Name", width=250)
         self.tree.column("Status", width=100)
         self.tree.column("Review", width=150)
-        
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # 트리뷰 감싸는 프레임
+        container = tk.Frame(root)
+        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # 스크롤바
+        scrollbar = ttk.Scrollbar(container, orient="vertical")
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.tree.yview)
+        # 배치 (트리뷰는 왼쪽, 스크롤바는 오른쪽)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # 2. 바인딩
         self.tree.bind('<Double-1>', self.on_header_double_click)
@@ -34,7 +43,7 @@ class SMIEditor:
         self.tree.bind('<F5>', self.clear_list)
 
         # 3. UI 및 버튼
-        self.status_label = tk.Label(root, text="파일을 드래그하고 [전체 변환]을 누르세요.", fg="blue", anchor="w")
+        self.status_label = tk.Label(root, text="파일을 드래그하고 [전체 변환]을 누르세요.", fg="black", anchor="w")
         self.status_label.pack(fill=tk.X, padx=10)
 
         btn_frame = tk.Frame(root)
