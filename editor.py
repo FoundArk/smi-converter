@@ -1,5 +1,5 @@
 import os, re, tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, font
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 class SMIEditor:
@@ -19,12 +19,12 @@ class SMIEditor:
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings")
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.tree.heading("File Name", text="File Name")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Review", text="Review")
-        self.tree.column("File Name", width=300)
-        self.tree.column("Status", width=120)
-        self.tree.column("Review", width=180)
+        self.tree.heading("File Name", text="File Name", command=lambda: self.on_header_double_click("File Name"))
+        self.tree.heading("Status", text="Status", command=lambda: self.on_header_double_click("Status"))
+        self.tree.heading("Review", text="Review", command=lambda: self.on_header_double_click("Review"))
+        self.tree.column("File Name", width=300); self.tree.column("Status", width=120); self.tree.column("Review", width=180)
+        self.tree.bind('<Double-1>', self.on_header_double_click)
+        self.root.bind('<F5>', self.clear_list)
 
         # 하단 상태 라벨 및 버튼 영역
         self.status_label = tk.Label(root, text="검수 완료", fg="black", anchor="w")
@@ -43,15 +43,34 @@ class SMIEditor:
         self.tree.drop_target_register(DND_FILES)
         self.tree.dnd_bind('<<Drop>>', self.drop_files)
 
-        self.file_data = {}
-        self.temp_contents = {}
+        self.file_data = {}; self.temp_contents = {}
 
     # --- 기능함수 모음 ---
+    def read_file(self, path):
+        # 인코딩 자동 보정: ANSI(cp949) 우선 시도 후 실패 시 utf-8
+        for enc in ['cp949', 'utf-8', 'utf-8-sig']:
+            try:
+                with open(path, 'r', encoding=enc) as f: return f.read()
+            except: continue
+        return ""
+
+    def clear_list(self, event=None):
+        for item in self.tree.get_children(): self.tree.delete(item)
+        self.file_data.clear(); self.temp_contents.clear()
+
+    def on_header_double_click(self, event):
+        col = self.tree.identify_column(event.x) if isinstance(event, tk.Event) else f"#{list(self.tree['columns']).index(event)+1}"
+        col_id = self.tree.column(col, "id")
+        f = font.nametofont("TkHeadingFont")
+        max_width = f.measure(self.tree.heading(col_id, "text"))
+        for child in self.tree.get_children(): max_width = max(max_width, f.measure(self.tree.set(child, col_id)))
+        self.tree.column(col_id, width=max_width + 20)
+
     def convert_content(self, content):
         # 1. KRCC 변환
         # 1-1. 기존코드: KOKRCC와 KOKR만 KRCC로 변경 (안정성 높음)
         # 1-2. 변경코드: <P Class=****>의 ****에 해당하는 모든 문자를 KRCC로 변경 (범용성 높음)
-        content = re.sub(r'(<P\s+Class=)(KOKR|KRCC)[^>]*>', r'\1KRCC>', content, flags=re.IGNORECASE)
+        content = re.sub(r'(<P\s+Class=)[^>]+>', r'\1KRCC>', content, flags=re.IGNORECASE)
         
         # 2. 줄바꿈 최적화 (<br> 포함 필수 줄바꿈)
         content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
@@ -65,18 +84,8 @@ class SMIEditor:
     def run_all_process(self):
         for item, path in self.file_data.items():
             try:
-                # 1. 인코딩 문제 해결: ANSI(cp949) 파일도 utf-8로 저장 가능!
-                try:
-                    with open(path, 'r', encoding='cp949') as f:
-                        content = f.read()
-                except UnicodeDecodeError:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                
-                content = self.convert_content(content)
-                                
                 # 1. 태그 변환 및 줄바꿈 최적화
-                content = self.convert_content(content)
+                content = self.convert_content(self.read_file(path))
 
                 # 4. 헤더 교체 (<!--부터 -->까지의 내용을 AI는 인식하지 못하는 경우가 많아서 앞쪽 헤더 강제화가 필수, 사라지는 것에 주의)
                 lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
@@ -97,8 +106,7 @@ class SMIEditor:
     def review_original(self):
         for item, path in self.file_data.items():
             try:
-                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                    content = f.read()
+                content = self.read_file(path)
                 issues = []
                 for i in range(1, 10):
                     tag = r'{\an' + str(i) + r'}'
@@ -116,6 +124,7 @@ class SMIEditor:
             if item not in self.temp_contents: continue
             save_path = path if overwrite else os.path.join(os.path.dirname(path), f"{os.path.splitext(os.path.basename(path))[0]}_변환완료.smi")
             try:
+                # 2. 저장 시 인코딩: 한글이 깨지지 않게 'utf-8-sig' 사용 (BOM 포함)
                 with open(save_path, 'w', encoding='utf-8-sig') as f:
                     f.write(self.temp_contents[item])
                 self.tree.set(item, "Status", "저장 완료")
