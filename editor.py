@@ -50,18 +50,23 @@ class SMIEditor:
 
     # --- 여기서부터 아래로 모든 기능 함수들을 넣습니다 ---
     def on_header_double_click(self, event):
+        from tkinter import font
+
         region = self.tree.identify_region(event.x, event.y)
         if region in ("separator", "heading"):
             column = self.tree.identify_column(event.x)
             col_id = self.tree.column(column, "id")
-            
-            # 너비 계산
-            max_width = len(self.tree.heading(col_id, "text")) * 12
+
+            f = font.nametofont("TkHeadingFont")
+
+            header_text = self.tree.heading(col_id, "text")
+            max_width = f.measure(header_text)
+
             for child in self.tree.get_children():
                 val = str(self.tree.set(child, col_id))
-                max_width = max(max_width, len(val) * 8)
+                max_width = max(max_width, f.measure(val))
             
-            self.tree.column(col_id, width=max_width + 20)
+            new_width = max_width + 20
             self.tree.column(col_id, width=new_width, minwidth=new_width)
 
     def clear_list(self, event=None):
