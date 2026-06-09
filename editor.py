@@ -65,9 +65,16 @@ class SMIEditor:
     def run_all_process(self):
         for item, path in self.file_data.items():
             try:
-                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                    content = f.read()
+                # 1. 인코딩 문제 해결: ANSI(cp949) 파일도 utf-8로 저장 가능!
+                try:
+                    with open(path, 'r', encoding='cp949') as f:
+                        content = f.read()
+                except UnicodeDecodeError:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        content = f.read()
                 
+                content = self.convert_content(content)
+                                
                 # 1. 태그 변환 및 줄바꿈 최적화
                 content = self.convert_content(content)
 
