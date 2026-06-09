@@ -11,7 +11,8 @@ class SMIEditor:
         # [스타일 설정: 우측 끝 선을 보이게 하기 위한 핵심]
         style = ttk.Style()
         style.configure("Treeview", borderwidth=1, relief="solid")       
-        
+        style.configure("Treeview.Heading", borderwidth=1, relief="solid")
+
         # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
         self.tree.heading("File Name", text="File Name")
@@ -19,8 +20,8 @@ class SMIEditor:
         self.tree.heading("Review", text="Review")
 
         # 초기 설정
-        self.tree.column("File Name", width=300, minwidth=150, stretch=True)
-        self.tree.column("Status", width=100, minwidth=80, stretch=False)
+        self.tree.column("File Name", width=300, minwidth=50, stretch=True)
+        self.tree.column("Status", width=120, minwidth=80, stretch=False)
         self.tree.column("Review", width=200, minwidth=100, stretch=False)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -48,15 +49,15 @@ class SMIEditor:
     # --- 여기서부터 아래로 모든 기능 함수들을 넣습니다 ---
     def on_header_double_click(self, event):
         region = self.tree.identify_region(event.x, event.y)
-        if region == "separator" or region == "heading":
+        if region in ("separator", "heading"):
             column = self.tree.identify_column(event.x)
             col_id = self.tree.column(column, "id")
             
             # 너비 계산
-            max_width = len(self.tree.heading(col_id, "text")) * 10
+            max_width = len(self.tree.heading(col_id, "text")) * 12
             for child in self.tree.get_children():
                 val = str(self.tree.set(child, col_id))
-                max_width = max(max_width, len(val) * 9)
+                max_width = max(max_width, len(val) * 8)
             
             self.tree.column(col_id, width=max_width + 20)
 
