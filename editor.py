@@ -10,8 +10,8 @@ class SMIEditor:
         
         # [스타일 설정: 우측 끝 선을 보이게 하기 위한 핵심]
         style = ttk.Style()
-        style.configure("Treeview", borderwidth=1, relief="solid")       
-        style.configure("Treeview.Heading", borderwidth=1, relief="solid")
+        style.theme_use('clam')
+        style.configure("Treeview", borderwidth=2, relief="solid")
 
         # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
@@ -57,9 +57,10 @@ class SMIEditor:
             max_width = len(self.tree.heading(col_id, "text")) * 12
             for child in self.tree.get_children():
                 val = str(self.tree.set(child, col_id))
-                max_width = max(max_width, len(val) * 8)
+                max_width = max(max_width, len(val) * 10)
             
             self.tree.column(col_id, width=max_width + 20)
+            self.tree.column(col_id, width=new_width, minwidth=new_width)
 
     def clear_list(self, event=None):
         for item in self.tree.get_children(): self.tree.delete(item)
