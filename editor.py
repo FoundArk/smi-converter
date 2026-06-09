@@ -6,7 +6,7 @@ class SMIEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("SMI Editor - 안전 변환 모드")
-        self.root.geometry("600x650")
+        self.root.geometry("610x650")
         
         # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
