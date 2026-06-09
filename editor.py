@@ -73,8 +73,8 @@ class SMIEditor:
                     content = f.read()
                 issues = []
                 if r'{\an8}' in content: issues.append(r'{\an8}')
-                if re.search(r'KOKRCC', content, re.IGNORECASE): issues.append('KOKRCC')
-                if re.search(r'KOKR', content, re.IGNORECASE): issues.append('KOKR')
+                if r'KOKRCC' in content: issues.append(r'KOKRCC')
+                elif r'KOKR' in content: issues.append(r'KOKR')
                 result = ", ".join(issues) + " 발견" if issues else "이상 없음"
                 self.tree.set(item, "Review", result)
             except Exception as e:
@@ -87,7 +87,8 @@ class SMIEditor:
                 with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                     content = f.read()
                 # 1. KRCC로 변환
-                content = re.sub(r'KOKRCC|KOKR', 'KRCC', content, flags=re.IGNORECASE)
+                content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
+                content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
                 # 2. 줄바꿈 최적화
                 content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
                 content = re.sub(r'(&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
