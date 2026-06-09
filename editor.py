@@ -8,21 +8,20 @@ class SMIEditor:
         self.root.title("SMI Editor - 안전 변환 모드")
         self.root.geometry("610x650")
         
+        # [스타일 설정: 우측 끝 선을 보이게 하기 위한 핵심]
+        style = ttk.Style()
+        style.configure("Treeview", borderwidth=1, relief="solid")       
+        
         # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
         self.tree.heading("File Name", text="File Name")
         self.tree.heading("Status", text="Status")
         self.tree.heading("Review", text="Review")
+
+        # 초기 설정
         self.tree.column("File Name", width=300, minwidth=150, stretch=True)
         self.tree.column("Status", width=100, minwidth=80, stretch=False)
-        self.tree.column("Review", width=200, minwidth=100, stretch=True)
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        # stretch를 False로 설정하여 자동으로 늘어나는 것을 방지
-        self.tree.column("File Name", width=300, minwidth=150, stretch=True)
-        self.tree.column("Status", width=100, minwidth=80, stretch=False)
-        self.tree.column("Review", width=200, minwidth=100, stretch=False) # 여기를 False로 변경
-        
+        self.tree.column("Review", width=200, minwidth=100, stretch=False)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # 2. 바인딩
@@ -47,17 +46,19 @@ class SMIEditor:
         self.temp_contents = {}
 
     # --- 여기서부터 아래로 모든 기능 함수들을 넣습니다 ---
-
     def on_header_double_click(self, event):
         region = self.tree.identify_region(event.x, event.y)
-        if region == "heading":
+        if region == "separator" or region == "heading":
             column = self.tree.identify_column(event.x)
-            column_id = self.tree.column(column, "id")
-            max_width = len(self.tree.heading(column_id, "text")) * 10
+            col_id = self.tree.column(column, "id")
+            
+            # 너비 계산
+            max_width = len(self.tree.heading(col_id, "text")) * 10
             for child in self.tree.get_children():
-                val = str(self.tree.set(child, column_id))
-                max_width = max(max_width, len(val) * 8)
-            self.tree.column(column_id, width=max_width + 20)
+                val = str(self.tree.set(child, col_id))
+                max_width = max(max_width, len(val) * 9)
+            
+            self.tree.column(col_id, width=max_width + 20)
 
     def clear_list(self, event=None):
         for item in self.tree.get_children(): self.tree.delete(item)
