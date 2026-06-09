@@ -1,6 +1,3 @@
-네, 확인했습니다. 보내주신 코드에 포함된 기존 주석들을 하나도 빠짐없이 모두 유지하여, 말씀하신 레이아웃(좌측 버튼 5개, 우측 트리뷰)이 적용된 최종 코드를 정리했습니다.
-
-Python
 import os, re, tkinter as tk
 from tkinter import ttk, filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -26,11 +23,11 @@ class SMIEditor:
         btn_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
 
         btn_opts = {'fill': tk.X, 'pady': 5, 'ipady': 5}
-        tk.Button(btn_frame, text="1. 완료 자막 검수", command=self.review_original, bg="khaki").pack(**btn_opts)
-        tk.Button(btn_frame, text="2. 전체 변환 실행", command=self.run_all_process, bg="skyblue").pack(**btn_opts)
-        tk.Button(btn_frame, text="3. 변환 자막 검수", command=self.review_converted, bg="violet").pack(**btn_opts)
-        tk.Button(btn_frame, text="4. 덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen").pack(**btn_opts)
-        tk.Button(btn_frame, text="5. 다른 이름 저장", command=lambda: self.save_files(False), bg="orange").pack(**btn_opts)
+        tk.Button(btn_frame, text="완료 자막 검수", command=self.review_original, bg="khaki").pack(**btn_opts)
+        tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue").pack(**btn_opts)
+        tk.Button(btn_frame, text="변환 자막 검수", command=self.review_converted, bg="violet").pack(**btn_opts)
+        tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen").pack(**btn_opts)
+        tk.Button(btn_frame, text="다른 이름 저장", command=lambda: self.save_files(False), bg="orange").pack(**btn_opts)
 
         # 2. 우측 트리뷰 프레임
         right_frame = tk.Frame(main_frame)
