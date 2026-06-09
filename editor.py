@@ -1,3 +1,6 @@
+네, 확인했습니다. 보내주신 코드에 포함된 기존 주석들을 하나도 빠짐없이 모두 유지하여, 말씀하신 레이아웃(좌측 버튼 5개, 우측 트리뷰)이 적용된 최종 코드를 정리했습니다.
+
+Python
 import os, re, tkinter as tk
 from tkinter import ttk, filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
