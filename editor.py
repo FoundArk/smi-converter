@@ -8,11 +8,13 @@ class SMIEditor:
         self.root.title("SMI Editor - 안전 변환 모드")
         self.root.geometry("600x650")
         
-        self.tree = ttk.Treeview(root, columns=("File Name", "Status"), show="headings", height=15)
+        self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
         self.tree.heading("File Name", text="File Name")
         self.tree.heading("Status", text="Status")
-        self.tree.column("File Name", width=400)
+        self.tree.heading("Review", text="Review")
+        self.tree.column("File Name", width=320)
         self.tree.column("Status", width=120)
+        self.tree.column("Review", width=220)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         self.tree.drop_target_register(DND_FILES)
@@ -28,7 +30,9 @@ class SMIEditor:
         
         # 1. 전체 변환 (파일 수정 X, 메모리상에서만 변환)
         tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue").pack(side=tk.LEFT, padx=5)
-        # 2. 저장 방식 선택
+        # 2. 검수 (변환 여부 확인, 누락 파일 표시)
+        tk.Button(btn_frame, text="검수", command=self.review_files, bg="khaki").pack(side=tk.LEFT, padx=5)
+        # 3. 저장 방식 선택
         tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(overwrite=True), bg="lightgreen").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="다른 이름으로 저장", command=lambda: self.save_files(overwrite=False), bg="orange").pack(side=tk.LEFT, padx=5)
 
@@ -45,9 +49,30 @@ class SMIEditor:
         files = self.root.tk.splitlist(event.data)
         for f in files:
             if f.endswith('.smi'):
-                item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨"))
+                item = self.tree.insert("","end",values=(os.path.basename(f),"준비됨","-"))
                 self.file_data[item] = f
         self.status_label.config(text=f"{len(self.file_data)}개 파일 준비 완료")
+
+    def review_files(self):
+        for item, path in self.file_data.items():
+        try:
+        with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+        content = f.read()
+                issues = []
+                if r'{\an8}' in content:
+                    issues.append(r'{\an8}')
+                if re.search(r'KOKRCC', content, re.IGNORECASE):
+                    issues.append('KOKRCC')
+                if re.search(r'KOKR', content, re.IGNORECASE):
+                    issues.append('KOKR')
+                if issues:
+                    result = ", ".join(issues) + " 발견"
+                else:
+                    result = "이상 없음"
+                self.tree.set(item, "Review", result)
+            except Exception as e:
+                self.tree.set(item, "Review", f"검수 실패: {e}")
+        self.status_label.config(text="검수 완료")
 
     def run_all_process(self):
         for item, path in self.file_data.items():
