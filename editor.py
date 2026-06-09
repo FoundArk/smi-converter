@@ -6,58 +6,46 @@ class SMIEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("SMI Editor - 안전 변환 모드")
-        self.root.geometry("800x650")
+        self.root.geometry("800x700")
 
-        # [스타일 설정]
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("Treeview", borderwidth=2, relief="solid")
-        style.configure("Treeview.Heading", relief="raised")
-
-        # [메인 프레임 구성] - 좌측(버튼), 우측(트리뷰)
-        main_frame = tk.Frame(root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # 1. 좌측 버튼 프레임 (세로 5단계)
-        btn_frame = tk.Frame(main_frame, width=150)
-        btn_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-
-        btn_opts = {'fill': tk.X, 'pady': 5, 'ipady': 5}
-        tk.Button(btn_frame, text="완료 자막 검수", command=self.review_original, bg="khaki").pack(**btn_opts)
-        tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue").pack(**btn_opts)
-        tk.Button(btn_frame, text="변환 자막 검수", command=self.review_converted, bg="violet").pack(**btn_opts)
-        tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen").pack(**btn_opts)
-        tk.Button(btn_frame, text="다른 이름 저장", command=lambda: self.save_files(False), bg="orange").pack(**btn_opts)
-
-        # 2. 우측 트리뷰 프레임
-        right_frame = tk.Frame(main_frame)
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-
-        scrollbar = ttk.Scrollbar(right_frame, orient="vertical")
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        self.tree = ttk.Treeview(right_frame, columns=("File Name", "Status", "Review"), 
-                                 show="headings", yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.tree.yview)
+        # [상단: 트리뷰]
+        top_frame = tk.Frame(root)
+        top_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        self.tree = ttk.Treeview(top_frame, columns=("File Name", "Status", "Review"), show="headings", height=12)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.tree.heading("File Name", text="File Name"); self.tree.heading("Status", text="Status"); self.tree.heading("Review", text="Review")
+        self.tree.column("File Name", width=250); self.tree.column("Status", width=120); self.tree.column("Review", width=150)
+        
+        # [하단: 좌측 버튼 5개 + 우측 로그 5줄]
+        bottom_frame = tk.Frame(root, padx=10, pady=10)
+        bottom_frame.pack(fill=tk.X)
 
-        self.tree.heading("File Name", text="File Name")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Review", text="Review")
-        self.tree.column("File Name", width=200)
-        self.tree.column("Status", width=120)
-        self.tree.column("Review", width=180)
+        # 좌측 버튼 영역
+        btn_frame = tk.Frame(bottom_frame)
+        btn_frame.pack(side=tk.LEFT, padx=(0, 20))
+        
+        # 우측 로그 영역 (5줄 고정)
+        log_frame = tk.Frame(bottom_frame, relief="solid", borderwidth=1, bg="white")
+        log_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.tree.bind('<Double-1>', self.on_header_double_click)
-        self.tree.drop_target_register(DND_FILES)
-        self.tree.dnd_bind('<<Drop>>', self.drop_files)
-        self.tree.bind('<F5>', self.clear_list)
+        self.logs = []
+        btn_texts = ["완료 자막 검수", "전체 변환 실행", "변환 자막 검수", "덮어쓰기 저장", "다른 이름 저장"]
+        colors = ["khaki", "skyblue", "violet", "lightgreen", "orange"]
+        commands = [self.review_original, self.run_all_process, self.review_converted, 
+                    lambda: self.save_files(True), lambda: self.save_files(False)]
 
-        self.status_label = tk.Label(root, text="등록된 파일이 없습니다.", fg="black", anchor="w")
-        self.status_label.pack(fill=tk.X, padx=10, pady=5)
+        for i in range(5):
+            tk.Button(btn_frame, text=btn_texts[i], bg=colors[i], width=18, command=commands[i]).pack(pady=3)
+            log = tk.Label(log_frame, text=f"{i+1}.", anchor="w", bg="white", height=2)
+            log.pack(fill=tk.X, padx=5)
+            self.logs.append(log)
 
-        self.file_data = {}
-        self.temp_contents = {}
+        self.file_data = {}; self.temp_contents = {}
+        self.tree.drop_target_register(DND_FILES); self.tree.dnd_bind('<<Drop>>', self.drop_files)
+
+    def update_log(self, idx, text):
+        self.logs[idx].config(text=f"{idx+1}. {text}")
 
     # --- 기능함수 모음 ---
     def convert_content(self, content):
@@ -98,7 +86,7 @@ class SMIEditor:
                 self.tree.set(item, "Status", "변환 완료")
             except Exception as e:
                 self.tree.set(item, "Status", f"오류: {e}")
-        self.status_label.config(text="전체 변환 완료. 변환 자막 검수를 진행하세요.")
+        self.update_log(1, "전체 변환 실행 완료: KOKR->KRCC, 줄바꿈, 헤더 교체 적용")
 
     def review_original(self):
         for item, path in self.file_data.items():
@@ -114,7 +102,7 @@ class SMIEditor:
                 self.tree.set(item, "Review", ", ".join(issues) + " 발견" if issues else "이상 없음")
             except Exception as e:
                 self.tree.set(item, "Review", f"검수 실패: {e}")
-        self.status_label.config(text="원본 검수 완료")
+        self.update_log(0, "원본 검수 완료: {\an*}, KOKR 등 이상 유무 기록")
 
     def review_converted(self):
         for item, path in self.file_data.items():
@@ -126,7 +114,7 @@ class SMIEditor:
                 self.tree.set(item, "Review", "오류: 태그 남아있음")
             else:
                 self.tree.set(item, "Review", "변환 파일 이상 없음")
-        self.status_label.config(text="변환 자막 검수 완료")
+        self.update_log(2, "변환 자막 검수 완료: 오류 유무 기록")
 
     def save_files(self, overwrite):
         count = 0
@@ -140,27 +128,7 @@ class SMIEditor:
                 count += 1
             except Exception as e:
                 self.tree.set(item, "Status", f"저장 실패: {e}")
-        self.status_label.config(text=f"총 {count}개 파일 저장 완료")
-
-    def on_header_double_click(self, event):
-        from tkinter import font
-        region = self.tree.identify_region(event.x, event.y)
-        if region in ("separator", "heading"):
-            column = self.tree.identify_column(event.x)
-            col_id = self.tree.column(column, "id")
-            f = font.nametofont("TkHeadingFont")
-            header_text = self.tree.heading(col_id, "text")
-            max_width = f.measure(header_text)
-            for child in self.tree.get_children():
-                val = str(self.tree.set(child, col_id))
-                max_width = max(max_width, f.measure(val))
-            new_width = max_width + 20
-            self.tree.column(col_id, width=new_width, minwidth=new_width)
-
-    def clear_list(self, event=None):
-        for item in self.tree.get_children(): self.tree.delete(item)
-        self.file_data.clear(); self.temp_contents.clear()
-        self.status_label.config(text="초기화됨")
+        self.update_log(3 if overwrite else 4, f"파일 저장 방식 선택: {'덮어쓰기' if overwrite else '다른 이름 저장'} 완료")
 
     def drop_files(self, event):
         files = self.root.tk.splitlist(event.data)
@@ -168,7 +136,6 @@ class SMIEditor:
             if f.endswith('.smi'):
                 item = self.tree.insert("","end",values=(os.path.basename(f),"준비됨","-"))
                 self.file_data[item] = f
-        self.status_label.config(text=f"{len(self.file_data)}개 파일 준비 완료")
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
