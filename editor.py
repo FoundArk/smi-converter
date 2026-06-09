@@ -97,7 +97,9 @@ class SMIEditor:
                 content = re.sub(r'{\an8}', '', content)
                 # 4. 헤더 교체
                 lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
-                         '<STYLE TYPE="text/css">', "", "</STYLE>", 
+                         '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
+                         "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
+                         ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
                          "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
                 idx = content.find('<SYNC')
                 if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
