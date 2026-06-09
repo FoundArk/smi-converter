@@ -101,18 +101,28 @@ class SMIEditor:
         return content
 
     def run_all_process(self):
-        # 전체 파일에 대해 변환 및 헤더 적용
+        # 전체 파일 변환 및 헤더 적용
         for item, path in self.file_data.items():
             content = self.convert_content(self.read_file(path))
-            # SAMI 표준 헤더 구조 삽입
-            header_str = "<SAMI>\n<HEAD>\n<TITLE>Subtitle Validation Tool</TITLE>\n"
-            header_str += '<STYLE TYPE="text/css">\n<!--\nP {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;\n   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;\n   font-weight:Bold; color:white;}\n.KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}\n-->\n</STYLE>\n</HEAD>\n<BODY>\n<SYNC Start=0><P Class=KRCC>&nbsp;"
-
-            #"<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
-            #             '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
-            #             "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
-            #             ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
-            #             "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"
+            
+            # 리스트 방식으로 구성하여 문법 오류 원천 차단
+            lines = [
+                "<SAMI>",
+                "<HEAD>",
+                "<TITLE>Subtitle Validation Tool</TITLE>",
+                '<STYLE TYPE="text/css">',
+                "<!--",
+                "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
+                "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;",
+                "   font-weight:Bold; color:white;}",
+                ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->",
+                "</STYLE>",
+                "</HEAD>",
+                "<BODY>",
+                "<SYNC Start=0><P Class=KRCC>&nbsp;"
+            ]
+            
+            header_str = "\n".join(lines)
             
             idx = content.find('<SYNC')
             if idx != -1:
@@ -120,7 +130,7 @@ class SMIEditor:
             self.temp_contents[item] = content
             self.tree.set(item, "Status", "변환 완료")
         self.status_label.config(text="전체 변환 완료.")
-
+                     
     def review_original(self):
         # 파일별 인코딩 식별 및 태그 발견 여부 검수
         for item, path in self.file_data.items():
