@@ -12,6 +12,7 @@ class SMIEditor:
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Treeview", borderwidth=2, relief="solid")
+        style.configure("Treeview.Heading", relief="raised")
 
         # 1. 트리뷰 생성
         self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings", height=15)
@@ -20,9 +21,10 @@ class SMIEditor:
         self.tree.heading("Review", text="Review")
 
         # 초기 설정
-        self.tree.column("File Name", width=300, minwidth=50, stretch=True)
-        self.tree.column("Status", width=120, minwidth=80, stretch=False)
-        self.tree.column("Review", width=200, minwidth=100, stretch=False)
+        self.tree.column("File Name", width=250)
+        self.tree.column("Status", width=100)
+        self.tree.column("Review", width=150)
+        
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # 2. 바인딩
@@ -57,7 +59,7 @@ class SMIEditor:
             max_width = len(self.tree.heading(col_id, "text")) * 12
             for child in self.tree.get_children():
                 val = str(self.tree.set(child, col_id))
-                max_width = max(max_width, len(val) * 10)
+                max_width = max(max_width, len(val) * 8)
             
             self.tree.column(col_id, width=max_width + 20)
             self.tree.column(col_id, width=new_width, minwidth=new_width)
