@@ -54,25 +54,25 @@ class SMIEditor:
         self.status_label.config(text=f"{len(self.file_data)}개 파일 준비 완료")
 
     def review_files(self):
-    for item, path in self.file_data.items():
-    try:
-    with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-    content = f.read()
-            issues = []
-            if r'{\an8}' in content:
-                issues.append(r'{\an8}')
-            if re.search(r'KOKRCC', content, re.IGNORECASE):
-                issues.append('KOKRCC')
-            if re.search(r'KOKR', content, re.IGNORECASE):
-                issues.append('KOKR')
-            if issues:
-                result = ", ".join(issues) + " 발견"
-            else:
-                result = "이상 없음"
-            self.tree.set(item, "Review", result)
-        except Exception as e:
-            self.tree.set(item, "Review", f"검수 실패: {e}")
-    self.status_label.config(text="검수 완료")
+        for item, path in self.file_data.items():
+            try:
+                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                content = f.read()
+                issues = []
+                if r'{\an8}' in content:
+                    issues.append(r'{\an8}')
+                if re.search(r'KOKRCC', content, re.IGNORECASE):
+                    issues.append('KOKRCC')
+                if re.search(r'KOKR', content, re.IGNORECASE):
+                    issues.append('KOKR')
+                if issues:
+                    result = ", ".join(issues) + " 발견"
+                else:
+                    result = "이상 없음"
+                self.tree.set(item, "Review", result)
+            except Exception as e:
+                self.tree.set(item, "Review", f"검수 실패: {e}")
+        self.status_label.config(text="검수 완료")
 
     def run_all_process(self):
         for item, path in self.file_data.items():
