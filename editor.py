@@ -1,12 +1,19 @@
-import os, re, tkinter as tk
-from tkinter import ttk, filedialog, font
-from tkinterdnd2 import DND_FILES, TkinterDnD
+import os, sys, re, tkinter as tk
+# ... (위쪽 import는 동일)
 
 class SMIEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("SMI Editor - 안전 변환 모드")
-        self.root.geometry("800x650")
+        
+        # [실행 파일 이름 가져오기]
+        # 실행 파일(.exe) 이름을 확장자 떼고 가져와서 타이틀로 설정
+        exe_name = os.path.splitext(os.path.basename(sys.executable))[0]
+        # 만약 파이썬 스크립트로 직접 실행 중이면 __file__ 이름을 가져옴
+        if exe_name == "python" or exe_name == "pythonw":
+            exe_name = os.path.splitext(os.path.basename(__file__))[0]
+        
+        self.root.title(exe_name) # 여기서 창 제목을 자동으로 설정
+        self.root.geometry("600x650")
 
         # [스타일 설정]
         style = ttk.Style()
@@ -15,14 +22,18 @@ class SMIEditor:
         style.configure("Treeview.Heading", relief="raised")
 
         # [메인 구성]
-        # 상단 트리뷰 영역
-        self.tree = ttk.Treeview(root, columns=("File Name", "Status", "Review"), show="headings")
+        # 상단 트리뷰 영역 (Name, Status, Encode, Info 4개 컬럼)
+        self.tree = ttk.Treeview(root, columns=("Name", "Status", "Encode", "Info"), show="headings")
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.tree.heading("File Name", text="File Name", command=lambda: self.on_header_double_click("File Name"))
+        self.tree.heading("Name", text="Name", command=lambda: self.on_header_double_click("Name"))
         self.tree.heading("Status", text="Status", command=lambda: self.on_header_double_click("Status"))
-        self.tree.heading("Review", text="Review", command=lambda: self.on_header_double_click("Review"))
-        self.tree.column("File Name", width=300); self.tree.column("Status", width=120); self.tree.column("Review", width=180)
+        self.tree.heading("Encode", text="Encode", command=lambda: self.on_header_double_click("Encode"))
+        self.tree.heading("Info", text="Info", command=lambda: self.on_header_double_click("Info"))
+        
+        self.tree.column("Name", width=200); self.tree.column("Status", width=100)
+        self.tree.column("Encode", width=80); self.tree.column("Info", width=200)
+        
         self.tree.bind('<Double-1>', self.on_header_double_click)
         self.root.bind('<F5>', self.clear_list)
 
@@ -34,12 +45,11 @@ class SMIEditor:
         btn_frame.pack()
 
         # 버튼 4개 배치
-        tk.Button(btn_frame, text="전체 변환 실행", command=self.run_all_process, bg="skyblue", width=15).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="파일 변환 실행", command=self.run_all_process, bg="skyblue", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="자막 검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="다른 이름으로 저장", command=lambda: self.save_files(False), bg="orange", width=15).pack(side=tk.LEFT, padx=5)
 
-        # [이벤트 바인딩]
         self.tree.drop_target_register(DND_FILES)
         self.tree.dnd_bind('<<Drop>>', self.drop_files)
 
@@ -59,12 +69,13 @@ class SMIEditor:
         self.file_data.clear(); self.temp_contents.clear()
 
     def on_header_double_click(self, event):
-        col = self.tree.identify_column(event.x) if isinstance(event, tk.Event) else f"#{list(self.tree['columns']).index(event)+1}"
-        col_id = self.tree.column(col, "id")
-        f = font.nametofont("TkHeadingFont")
-        max_width = f.measure(self.tree.heading(col_id, "text"))
-        for child in self.tree.get_children(): max_width = max(max_width, f.measure(self.tree.set(child, col_id)))
-        self.tree.column(col_id, width=max_width + 20)
+        if self.tree.identify_region(event.x, event.y) == 'heading':
+            col = self.tree.identify_column(event.x)
+            col_id = self.tree.column(col, "id")
+            f = font.nametofont("TkHeadingFont")
+            max_width = f.measure(self.tree.heading(col_id, "text"))
+            for child in self.tree.get_children(): max_width = max(max_width, f.measure(self.tree.set(child, col_id)))
+            self.tree.column(col_id, width=max_width + 20)
 
     def convert_content(self, content):
         # 1. KRCC 변환
@@ -84,9 +95,7 @@ class SMIEditor:
     def run_all_process(self):
         for item, path in self.file_data.items():
             try:
-                # 1. 태그 변환 및 줄바꿈 최적화
                 content = self.convert_content(self.read_file(path))
-
                 # 4. 헤더 교체 (<!--부터 -->까지의 내용을 AI는 인식하지 못하는 경우가 많아서 앞쪽 헤더 강제화가 필수, 사라지는 것에 주의)
                 lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
                          '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
@@ -96,7 +105,6 @@ class SMIEditor:
                 
                 idx = content.find('<SYNC')
                 if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
-                
                 self.temp_contents[item] = content
                 self.tree.set(item, "Status", "변환 완료")
             except Exception as e:
@@ -106,6 +114,12 @@ class SMIEditor:
     def review_original(self):
         for item, path in self.file_data.items():
             try:
+                # 파일 인코딩 체크
+                is_ansi = False
+                try:
+                    with open(path, 'r', encoding='cp949'): is_ansi = True
+                except: is_ansi = False
+                
                 content = self.read_file(path)
                 issues = []
                 for i in range(1, 10):
@@ -113,9 +127,11 @@ class SMIEditor:
                     if tag in content: issues.append(tag)
                 if 'KOKRCC' in content.upper(): issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): issues.append('KOKR')
-                self.tree.set(item, "Review", ", ".join(issues) + " 발견" if issues else "이상 없음")
+                
+                self.tree.set(item, "Encode", "ANSI" if is_ansi else "UTF-8")
+                self.tree.set(item, "Info", ", ".join(issues) + " 발견" if issues else "이상 없음")
             except Exception as e:
-                self.tree.set(item, "Review", f"검수 실패: {e}")
+                self.tree.set(item, "Info", f"검수 실패: {e}")
         self.status_label.config(text="검수 완료")
 
     def save_files(self, overwrite):
@@ -137,7 +153,7 @@ class SMIEditor:
         files = self.root.tk.splitlist(event.data)
         for f in files:
             if f.endswith('.smi'):
-                item = self.tree.insert("","end",values=(os.path.basename(f),"준비됨","-"))
+                item = self.tree.insert("","end",values=(os.path.basename(f),"준비됨","-","-"))
                 self.file_data[item] = f
 
 if __name__ == "__main__":
