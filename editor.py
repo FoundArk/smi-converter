@@ -62,24 +62,61 @@ class SMIEditor:
         self.file_data = {}
         self.temp_contents = {}
 
-    # 기능함수모음
+    # --- 기능함수 모음 ---
+    def convert_content(self, content):
+        # 1. KRCC 변환
+        # 1-1. 기존코드: KOKRCC와 KOKR만 KRCC로 변경 (안정성 높음)
+        # content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
+        # content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
+        # 1-2. 변경코드: <P Class=****>의 ****에 해당하는 모든 문자를 KRCC로 변경 (범용성 높음)
+        content = re.sub(r'(<P\s+Class=)(KOKR|KRCC)[^>]*>', r'\1KRCC>', content, flags=re.IGNORECASE)
+        
+        # 2. 줄바꿈 최적화 (<br> 포함 필수 줄바꿈)
+        content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+        content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
+        
+        # 3. \an8 삭제 (현재로서는 {\an8}만 발견되어 사용했으나, 1-9 범위 내 다른 숫자 발견 시 적용)
+        content = re.sub(r'{\\an[1-9]}', '', content, flags=re.IGNORECASE)
+        
+        return content
+
+    def run_all_process(self):
+        for item, path in self.file_data.items():
+            try:
+                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                    content = f.read()
+                
+                # 1. 태그 변환 및 줄바꿈 최적화
+                content = self.convert_content(content)
+
+                # 4. 헤더 교체 (<!--부터 -->까지의 내용을 AI는 인식하지 못하는 경우가 많아서 앞쪽 헤더 강제화가 필수, 사라지는 것에 주의)
+                lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
+                         '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
+                         "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
+                         ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
+                         "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
+                
+                idx = content.find('<SYNC')
+                if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
+                
+                self.temp_contents[item] = content
+                self.tree.set(item, "Status", "변환 완료(저장 대기)")
+            except Exception as e:
+                self.tree.set(item, "Status", f"오류: {e}")
+        self.status_label.config(text="모든 파일 변환 완료. 저장 방식을 선택하세요.")
+
     def on_header_double_click(self, event):
         from tkinter import font
-
         region = self.tree.identify_region(event.x, event.y)
         if region in ("separator", "heading"):
             column = self.tree.identify_column(event.x)
             col_id = self.tree.column(column, "id")
-
             f = font.nametofont("TkHeadingFont")
-
             header_text = self.tree.heading(col_id, "text")
             max_width = f.measure(header_text)
-
             for child in self.tree.get_children():
                 val = str(self.tree.set(child, col_id))
                 max_width = max(max_width, f.measure(val))
-            
             new_width = max_width + 20
             self.tree.column(col_id, width=new_width, minwidth=new_width)
 
@@ -103,55 +140,13 @@ class SMIEditor:
                 with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                     content = f.read()
                 issues = []
-                if r'{\an8}' in content: issues.append(r'{\an8}')
-                if r'KOKRCC' in content: issues.append(r'KOKRCC')
-                if r'KOKR' in content: issues.append(r'KOKR')
+                if any(x in content for x in [r'{\an1}', r'{\an2}', r'{\an3}', r'{\an4}', r'{\an5}', r'{\an6}', r'{\an7}', r'{\an8}', r'{\an9}']): issues.append(r'{\an*}')
+                if any(x in content.upper() for x in ['KOKRCC', 'KOKR']): issues.append(r'KOKR계열')
                 result = ", ".join(issues) + " 발견" if issues else "이상 없음"
                 self.tree.set(item, "Review", result)
             except Exception as e:
                 self.tree.set(item, "Review", f"검수 실패: {e}")
         self.status_label.config(text="검수 완료")
-
-    def run_all_process(self):
-        for item, path in self.file_data.items():
-            try:
-                with open(path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                    content = f.read()
-                # 1. KRCC 변환
-                # 1-1. 기존코드: KOKRCC와 KOKR만 KRCC로 변경 (안정성 높음)
-                # content = re.sub(r'KOKRCC', 'KRCC', content, flags=re.IGNORECASE)
-                # content = re.sub(r'KOKR', 'KRCC', content, flags=re.IGNORECASE)
-                # 1-2. 변경코드: <P Class=****>의 ****에 해당하는 모든 문자를 KRCC로 변경 (범용성 높음, 오류 발생시 1-1 사용)
-                # [^>]*의 경우 '>' 기호가 나오기 전까지 모든 문자를 매칭함
-                import re
-                def convert_content(self, content):
-                    pattern = r'(<P Class=)([^>]*)(>)'
-                    content = re.sub(pattern, r'\1KRCC\3', content, flags=re.IGNORECASE)
-                    return content
-                
-                # 2. 줄바꿈 최적화 (<br> 포함 필수 줄바꿈)
-                content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
-                content = re.sub(r'(&nbsp;)([^ \s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
-                content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
-
-                # 3. \an8 삭제 (현재로서는 {\an8}만 발견되어 사용했으나, 1-9 범위 내 다른 숫자 발견 시, 3-2 사용
-                content = re.sub(r'{\an8}', '', content)
-                # 3-2 : {\an1}부터 {\an9}까지 전부 적용 가능
-                # content = re.sub(r'{\\an[1-9]}', '', content)
-
-                # 4. 헤더 교체 (<!--부터 -->까지의 내용을 AI는 인식하지 못하는 경우가 많아서 앞쪽 헤더 강제화가 필수, 사라지는 것에 주의)
-                lines = ["<SAMI>", "<HEAD>", "<TITLE>Subtitle Validation Tool x64 1.2.4 - (C) SPTek, Inc.</TITLE>",
-                         '<STYLE TYPE="text/css">', "<!--", "P {margin-left:4pt; margin-right:4pt; margin-bottom:2pt; margin-top:2pt;",
-                         "   text-align:Center; font-size:18pt; font-family: 맑은 고딕, 굴림, Arial;", "   font-weight:Bold; color:white;}",
-                         ".KRCC {Name:한국어; Lang:ko-KR; SAMIType:CC;}", "-->", "</STYLE>", 
-                         "</HEAD>", "<BODY>", "<SYNC Start=0><P Class=KRCC>&nbsp;"]
-                idx = content.find('<SYNC')
-                if idx != -1: content = "\n".join(lines) + "\n" + content[idx:]
-                self.temp_contents[item] = content
-                self.tree.set(item, "Status", "변환 완료(저장 대기)")
-            except Exception as e:
-                self.tree.set(item, "Status", f"오류: {e}")
-        self.status_label.config(text="모든 파일 변환 완료. 저장 방식을 선택하세요.")
 
     def save_files(self, overwrite):
         saved_count = 0
