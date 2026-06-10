@@ -33,14 +33,14 @@ class SMIEditor:
         self.status_label = tk.Label(root, text="검수 완료", fg="black", anchor="w")
         self.status_label.pack(fill=tk.X, padx=10)
 
+        # 버튼 생성 로직 변경
         btn_frame = tk.Frame(root, pady=10)
-        btn_frame.pack()
+        btn_frame.pack(fill=tk.X, padx=5)
 
-        # 버튼 4개 배치
-        tk.Button(btn_frame, text="자막 변환 실행", command=self.run_all_process, bg="skyblue", width=15).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="변환 자막 검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="덮어쓰기 저장", command=lambda: self.save_files(True), bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="다른 이름으로 저장", command=lambda: self.save_files(False), bg="orange", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="변환 실행", command=self.run_all_process, bg="skyblue", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="덮어쓰기", command=lambda: self.save_files(True), bg="lightgreen", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="다른이름 저장", command=lambda: self.save_files(False), bg="orange", width=12).pack(side=tk.LEFT, expand=True, padx=2)
 
         self.tree.drop_target_register(DND_FILES)
         self.tree.dnd_bind('<<Drop>>', self.drop_files)
@@ -147,27 +147,35 @@ class SMIEditor:
             if f.endswith('.smi'):
                 content = self.read_file(f)
                 
-                # 1. {\an1} ~ {\an9} 검출
+                # 1. {\an} 검출
                 an_issues = [f'{{\\an{i}}}' for i in range(1, 10) if f'{{\\an{i}}}' in content]
                 
-                # 2. Class 계열 검출 (Class= 뒤에 KRCC가 아닌 것이 오면 검출)
-                class_matches = re.findall(r'Class=([^>\s]+)', content, flags=re.IGNORECASE)
-                class_issues = [f"Class={c}" for c in set(class_matches) if c.upper() != "KRCC"]
+                # 2. Class 검출: <P Class=****> 의 **** 부분만 추출 (KRCC 제외)
+                classes = re.findall(r'<P\s+Class=([^>]+)>', content, flags=re.IGNORECASE)
+                class_issues = [c for c in set(classes) if c.upper() not in ["KRCC", "KOKR", "KOKRCC"]]
                 
-                # 3. KOKRCC / KOKR 검출
+                # 3. KOKR/KOKRCC 확인
                 k_issues = []
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
                 
-                # 결과 합치기
                 all_issues = an_issues + class_issues + k_issues
                 info_text = ", ".join(all_issues) + " 발견" if all_issues else "이상 없음"
                 
-                # 인코딩 체크 (간단하게)
-                enc = "ANSI" if any(c > 127 for c in content.encode('cp949', errors='ignore') if c > 127) else "UTF-8"
-                
+                enc = self.get_encoding(f) # 새로 만든 함수 호출
                 item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨", enc, info_text))
                 self.file_data[item] = f
+
+    def get_encoding(self, path):
+        with open(path, 'rb') as f:
+            raw = f.read(3)
+            if raw == b'\xef\xbb\xbf': return "UTF-8(BOM)"
+        for enc in ['utf-8', 'cp949']:
+            try:
+                with open(path, 'r', encoding=enc) as f: f.read()
+                return "UTF-8" if enc == 'utf-8' else "ANSI"
+            except: continue
+        return "Unknown"
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
