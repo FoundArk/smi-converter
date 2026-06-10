@@ -23,8 +23,11 @@ class SMIEditor:
         self.tree.heading("Encode", text="Encode", command=lambda: self.on_header_double_click("Encode"))
         self.tree.heading("Info", text="Info", command=lambda: self.on_header_double_click("Info"))
         
-        self.tree.column("Name", width=200); self.tree.column("Status", width=100)
-        self.tree.column("Encode", width=80); self.tree.column("Info", width=200)
+        self.root.update()
+        self.tree.column("Name", width=250)
+        self.tree.column("Status", width=100)
+        self.tree.column("Encode", width=80)
+        self.tree.column("Info", width=150)
         
         self.tree.bind('<Double-1>', self.on_header_double_click)
         self.root.bind('<F5>', self.clear_list)
@@ -106,22 +109,28 @@ class SMIEditor:
     def review_original(self):
         for item, path in self.file_data.items():
             try:
-                # 파일 인코딩 체크
-                is_ansi = False
-                try:
-                    with open(path, 'r', encoding='cp949'): is_ansi = True
-                except: is_ansi = False
+                # 1. 원본 내용을 가져올지, 가상 영역의 내용을 가져올지 결정
+                # 가상 영역에 변환된 내용이 있으면 그것을 우선 검사
+                content = self.temp_contents.get(item, self.read_file(path))
                 
-                content = self.read_file(path)
-                issues = []
-                for i in range(1, 10):
-                    tag = r'{\an' + str(i) + r'}'
-                    if tag in content: issues.append(tag)
-                if 'KOKRCC' in content.upper(): issues.append('KOKRCC')
-                elif 'KOKR' in content.upper(): issues.append('KOKR')
+                # 2. 인코딩 예측: 변환 후에는 항상 'utf-8-sig'로 저장될 예정이므로
+                # '저장 시 인코딩'을 명시적으로 표시하는 것이 훨씬 정확합니다.
+                self.tree.set(item, "Encode", "UTF-8(BOM)")
                 
-                self.tree.set(item, "Encode", "ANSI" if is_ansi else "UTF-8")
-                self.tree.set(item, "Info", ", ".join(issues) + " 발견" if issues else "이상 없음")
+                # 3. Info 영역 검수 (메모리상 content 기준)
+                an_issues = [f'{{\\an{i}}}' for i in range(1, 10) if f'{{\\an{i}}}' in content]
+                classes = re.findall(r'<P\s+Class=([^>]+)>', content, flags=re.IGNORECASE)
+                class_issues = [c for c in set(classes) if c.upper() not in ["KRCC", "KOKR", "KOKRCC"]]
+                
+                k_issues = []
+                if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
+                elif 'KOKR' in content.upper(): k_issues.append('KOKR')
+                
+                all_issues = an_issues + class_issues + k_issues
+                info_text = ", ".join(all_issues) + " 발견" if all_issues else "이상 없음"
+                
+                self.tree.set(item, "Info", info_text)
+                
             except Exception as e:
                 self.tree.set(item, "Info", f"검수 실패: {e}")
         self.status_label.config(text="검수 완료")
