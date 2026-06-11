@@ -75,9 +75,11 @@ class SMIEditor:
         return ""
 
     def clear_list(self, event=None):
-        for item in self.tree.get_children(): self.tree.delete(item)
-        self.file_data.clear(); self.temp_contents.clear()
-            self.status_label.config(text="목록 초기화됨. 파일을 드래그하세요.")
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self.file_data.clear()
+        self.temp_contents.clear()
+        self.status_label.config(text="목록 초기화됨. 파일을 드래그하세요.")
 
     def on_header_double_click(self, event):
         if self.tree.identify_region(event.x, event.y) == 'heading':
