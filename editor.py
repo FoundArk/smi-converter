@@ -15,8 +15,23 @@ class SMIEditor:
         style.configure("Treeview.Heading", relief="raised")
 
         # [메인 구성]
-        self.tree = ttk.Treeview(root, columns=("Name", "Status", "Encode", "Info"), show="headings")
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # 1. 트리뷰와 스크롤바를 담을 프레임 생성
+        tree_frame = tk.Frame(root)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # 2. 스크롤바 생성
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL)
+        
+        # 3. 트리뷰 생성 (여기서 yscrollcommand 추가!)
+        self.tree = ttk.Treeview(tree_frame, columns=("Name", "Status", "Encode", "Info"), 
+                                 show="headings", yscrollcommand=scrollbar.set)
+        
+        # 4. 스크롤바를 트리뷰의 yview와 연결
+        scrollbar.config(command=self.tree.yview)
+        
+        # 5. 배치 (스크롤바를 오른쪽에, 트리뷰를 왼쪽에)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self.tree.heading("Name", text="Name", command=lambda: self.on_header_double_click("Name"))
         self.tree.heading("Status", text="Status", command=lambda: self.on_header_double_click("Status"))
@@ -32,17 +47,17 @@ class SMIEditor:
         self.tree.bind('<Double-1>', self.on_header_double_click)
         self.root.bind('<F5>', self.clear_list)
 
-        # 하단 상태 라벨 및 버튼 영역
-        self.status_label = tk.Label(root, text="검수 완료", fg="black", anchor="w")
-        self.status_label.pack(fill=tk.X, padx=10)
+        # 하단 상태 라벨 (초기 문구 수정)
+        self.status_label = tk.Label(root, text="파일을 드래그하여 추가하세요.", fg="black", anchor="w", bd=1, relief="sunken")
+        self.status_label.pack(fill=tk.X, padx=10, pady=5)
 
-        # 버튼 생성 로직 변경
+        # __init__ 내 버튼 구성
         btn_frame = tk.Frame(root, pady=10)
         btn_frame.pack(fill=tk.X, padx=5)
 
-        tk.Button(btn_frame, text="변환 실행", command=self.run_all_process, bg="skyblue", width=12).pack(side=tk.LEFT, expand=True, padx=2)
-        tk.Button(btn_frame, text="검수", command=self.review_original, bg="khaki", width=8).pack(side=tk.LEFT, expand=True, padx=2)
-        tk.Button(btn_frame, text="덮어쓰기", command=lambda: self.save_files(True), bg="lightgreen", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="파일 변환 실행", command=self.run_all_process, bg="skyblue", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="변환 파일 검수", command=self.review_original, bg="khaki", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        tk.Button(btn_frame, text="원본 덮어쓰기", command=lambda: self.save_files(True), bg="lightgreen", width=12).pack(side=tk.LEFT, expand=True, padx=2)
         tk.Button(btn_frame, text="다른이름 저장", command=lambda: self.save_files(False), bg="orange", width=12).pack(side=tk.LEFT, expand=True, padx=2)
 
         self.tree.drop_target_register(DND_FILES)
@@ -62,6 +77,7 @@ class SMIEditor:
     def clear_list(self, event=None):
         for item in self.tree.get_children(): self.tree.delete(item)
         self.file_data.clear(); self.temp_contents.clear()
+            self.status_label.config(text="목록 초기화됨. 파일을 드래그하세요.")
 
     def on_header_double_click(self, event):
         if self.tree.identify_region(event.x, event.y) == 'heading':
@@ -133,7 +149,7 @@ class SMIEditor:
                 
             except Exception as e:
                 self.tree.set(item, "Info", f"검수 실패: {e}")
-        self.status_label.config(text="검수 완료")
+        self.status_label.config(text=f"{len(self.file_data)}개 파일 검수 완료.")
 
     def save_files(self, overwrite):
         count = 0
@@ -148,7 +164,7 @@ class SMIEditor:
                 count += 1
             except Exception as e:
                 self.tree.set(item, "Status", f"저장 실패: {e}")
-        self.status_label.config(text=f"총 {count}개 파일 저장 완료")
+        self.status_label.config(text=f"총 {count}개 파일 저장 완료.")
 
     def drop_files(self, event):
         files = self.root.tk.splitlist(event.data)
