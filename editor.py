@@ -189,9 +189,16 @@ class SMIEditor:
                 all_issues = an_issues + class_issues + k_issues
                 info_text = ", ".join(all_issues) + " 발견" if all_issues else "이상 없음"
                 
-                enc = self.get_encoding(f) # 새로 만든 함수 호출
+                enc = self.get_encoding(f)
                 item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨", enc, info_text))
                 self.file_data[item] = f
+        
+        # [추가] 너비 자동 조정 및 상태 라벨 업데이트
+        for col in ["Name", "Status", "Encode", "Info"]:
+            self.auto_resize_column(col)
+        
+        # 파일 개수 표시 업데이트
+        self.status_label.config(text=f"총 {len(self.file_data)}개의 파일이 추가되었습니다.")
 
     def get_encoding(self, path):
         with open(path, 'rb') as f:
