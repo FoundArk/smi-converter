@@ -173,15 +173,9 @@ class SMIEditor:
         for f in files:
             if f.endswith('.smi'):
                 content = self.read_file(f)
-                
-                # 1. {\an} 검출
                 an_issues = [f'{{\\an{i}}}' for i in range(1, 10) if f'{{\\an{i}}}' in content]
-                
-                # 2. Class 검출: <P Class=****> 의 **** 부분만 추출 (KRCC 제외)
                 classes = re.findall(r'<P\s+Class=([^>]+)>', content, flags=re.IGNORECASE)
                 class_issues = [c for c in set(classes) if c.upper() not in ["KRCC", "KOKR", "KOKRCC"]]
-                
-                # 3. KOKR/KOKRCC 확인
                 k_issues = []
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
@@ -193,12 +187,15 @@ class SMIEditor:
                 item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨", enc, info_text))
                 self.file_data[item] = f
         
-        # [추가] 너비 자동 조정 및 상태 라벨 업데이트
+        # 1. 컬럼 너비 조정
         for col in ["Name", "Status", "Encode", "Info"]:
             self.auto_resize_column(col)
         
-        # 파일 개수 표시 업데이트
-        self.status_label.config(text=f"총 {len(self.file_data)}개의 파일이 추가되었습니다.")
+        # 2. 상태 라벨 강제 업데이트
+        msg = f"총 {len(self.file_data)}개의 파일이 추가되었습니다."
+        self.status_label.config(text=msg)
+        self.root.update_idletasks() # 화면에 즉시 반영되도록 강제 지시
+        print(msg) # 디버그용: 터미널에도 찍히는지 확인
 
     def get_encoding(self, path):
         with open(path, 'rb') as f:
