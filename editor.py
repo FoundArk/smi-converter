@@ -33,10 +33,11 @@ class SMIEditor:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.tree.heading("Name", text="Name", command=lambda: self.on_header_double_click("Name"))
-        self.tree.heading("Status", text="Status", command=lambda: self.on_header_double_click("Status"))
-        self.tree.heading("Encode", text="Encode", command=lambda: self.on_header_double_click("Encode"))
-        self.tree.heading("Info", text="Info", command=lambda: self.on_header_double_click("Info"))
+        # 기존 heading의 command는 제거하고 이벤트 바인딩으로 통합 처리
+        self.tree.heading("Name", text="Name")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Encode", text="Encode")
+        self.tree.heading("Info", text="Info")
         
         self.root.update()
         self.tree.column("Name", width=250)
@@ -44,7 +45,10 @@ class SMIEditor:
         self.tree.column("Encode", width=80)
         self.tree.column("Info", width=150)
         
-        self.tree.bind('<Double-1>', self.on_header_double_click)
+        # 한 번 클릭 시 -> 정렬 실행
+        self.tree.bind('<Button-1>', self.on_header_double_click)
+        # 더블 클릭 시 -> 컬럼 너비 자동 조절 실행
+        self.tree.bind('<Double-1>', self.on_header_double_click_width)
         self.root.bind('<F5>', self.clear_list)
 
         # 하단 상태 라벨 (초기 문구 수정)
@@ -82,12 +86,36 @@ class SMIEditor:
         self.status_label.config(text="목록 초기화됨. 파일을 드래그하세요.")
 
     def on_header_double_click(self, event):
+        # 1. 헤더 영역을 '한 번 클릭'했을 때의 정렬 처리
+        region = self.tree.identify_region(event.x, event.y)
+        if region == 'heading':
+            col = self.tree.identify_column(event.x)
+            col_id = self.tree.column(col, "id")
+            
+            # 현재 컬럼 데이터 가져오기
+            data = [(self.tree.set(child, col_id), child) for child in self.tree.get_children('')]
+            
+            # 오름차순/내림차순 토글 (컬럼별로 정렬 상태 관리)
+            if not hasattr(self, "sort_states"):
+                self.sort_states = {}
+            reverse = self.sort_states.get(col_id, False)
+            
+            data.sort(reverse=reverse)
+            
+            for i, (val, child) in enumerate(data):
+                self.tree.move(child, '', i)
+                
+            self.sort_states[col_id] = not reverse
+
+    def on_header_double_click_width(self, event):
+        # 2. 기존의 '더블클릭' 시 열 너비 자동 조절 기능 유지
         if self.tree.identify_region(event.x, event.y) == 'heading':
             col = self.tree.identify_column(event.x)
             col_id = self.tree.column(col, "id")
             f = font.nametofont("TkHeadingFont")
             max_width = f.measure(self.tree.heading(col_id, "text"))
-            for child in self.tree.get_children(): max_width = max(max_width, f.measure(self.tree.set(child, col_id)))
+            for child in self.tree.get_children(): 
+                max_width = max(max_width, f.measure(self.tree.set(child, col_id)))
             self.tree.column(col_id, width=max_width + 20)
 
     def convert_content(self, content):
