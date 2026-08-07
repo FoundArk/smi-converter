@@ -106,7 +106,7 @@ class SMIEditor:
         # 4. 추가 요구사항: '…' -> '...' 변경
         content = content.replace('…', '...')
         
-        # 5. 추가 요구사항: '맞는구나' -> '맞구나' 변경
+        # 5. [수정] '맞는구나' -> '맞구나' 자동 변경
         content = content.replace('맞는구나', '맞구나')
         
         return content
@@ -150,26 +150,25 @@ class SMIEditor:
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
 
-                # '맞는다', '맞는구나'의 경우 확인 필요
+                # '맞는다'의 경우 확인 필요
                 matching_issues = []
-                if '맞는' in content:
-                    matching_issues.append('맞는')
+                if '맞는다' in content:
+                    matching_issues.append('맞는다 검수')
 
                 # 말줄임표(…) 검사 추가
                 dot_issues = []
                 if '…' in content:
                     dot_issues.append('… 발견')
                 
-                all_issues = an_issues + class_issues + k_issues + matching_issues 
+                all_issues = an_issues + class_issues + k_issues + matching_issues + dot_issues
                 if all_issues:
                     info_parts = []
-                    std_issues = an_issues + class_issues + k_issues
-                    if std_issues:
-                        info_parts.append(", ".join(std_issues) + " 발견")
+                    if an_issues or class_issues or k_issues:
+                        info_parts.append(", ".join(an_issues + class_issues + k_issues) + " 발견")
                     if matching_issues:
-                        info_parts.append("맞는")
+                        info_parts.append("맞는다 검수")
                     if dot_issues:
-                        info_parts.append(", ".join(dot_issues))
+                        info_parts.append("… 발견")
                     info_text = " / ".join(info_parts)
                 else:
                     info_text = "이상 없음"
@@ -207,26 +206,20 @@ class SMIEditor:
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
                 
-                # 파일 드래그 시점에도 '맞는', '…' 단어 검사 추가
-                matching_issues = []
-                if '맞는' in content:
-                    matching_issues.append('맞는')
-                dot_issues = []
-                if '…' in content:
-                    dot_issues.append('… 발견')
+                # '맞는다'만 검수 대상으로 잡음
+                matching_issues = ['맞는다 검수'] if '맞는다' in content else []
+                dot_issues = ['… 발견'] if '…' in content else []
 
-                all_issues = an_issues + class_issues + k_issues + matching_issues
+                all_issues = an_issues + class_issues + k_issues + matching_issues + dot_issues
                 
                 if all_issues:
-                    # '맞는'가 포함된 경우 문구 조합 처리
                     info_parts = []
                     if an_issues or class_issues or k_issues:
-                        std_issues = an_issues + class_issues + k_issues
-                        info_parts.append(", ".join(std_issues) + " 발견")
+                        info_parts.append(", ".join(an_issues + class_issues + k_issues) + " 발견")
                     if matching_issues:
-                        info_parts.append("맞는")
+                        info_parts.append("맞는다 검수")
                     if dot_issues:
-                        info_parts.append(", ".join(dot_issues))
+                        info_parts.append("… 발견")
                     info_text = " / ".join(info_parts)
                 else:
                     info_text = "이상 없음"
