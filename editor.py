@@ -154,17 +154,26 @@ class SMIEditor:
                 matching_issues = []
                 if '맞는' in content:
                     matching_issues.append('맞는')
+
+                dot_issues = [] 
+                if '…' in content:
+                    dot_issues.append('… 발견')
                 
-                all_issues = an_issues + class_issues + k_issues + matching_issues 
-                info_text = ", ".join(all_issues) + " 발견" if (all_issues and '맞는' not in all_issues[-1]) else ", ".join(all_issues)
-                if all_issues:
-                    info_text = ", ".join(all_issues)
-                    if '맞는' not in info_text:
-                        info_text += " 발견"
-                else:
-                    info_text = "이상 없음"
+                all_issues = an_issues + class_issues + k_issues 
+                if std_issues:
+                    info_parts.append(", ".join(std_issues) + " 발견")
+                if matching_issues:
+                    info_parts.append("맞는")
+                if dot_issues:
+                    info_parts.append(", ".join(dot_issues))
+                    
+                    info_text = " / ".join(info_parts)
+                    
+                if info_parts 
                 
+                else "이상 없음"
                 self.tree.set(item, "Info", info_text)
+                
                 
             except Exception as e:
                 self.tree.set(item, "Info", f"검수 실패: {e}")
@@ -211,7 +220,10 @@ class SMIEditor:
                         std_issues = an_issues + class_issues + k_issues
                         info_parts.append(", ".join(std_issues) + " 발견")
                     if matching_issues:
-                        info_parts.append("맞는")
+                        info_parts.append("맞는 발견")
+                    if dot_issues:
+                        info_parts.append(", ".join(dot_issues))
+                        
                     info_text = " / ".join(info_parts)
                 else:
                     info_text = "이상 없음"
