@@ -50,19 +50,23 @@ class SMIEditor:
         # 더블 클릭 시 -> 컬럼 너비 자동 조절 실행
         self.tree.bind('<Double-1>', self.on_header_double_click_width)
         self.root.bind('<F5>', self.clear_list)
+        # 선택 후 Delete 누르면 목록에서 추가
+        self.root.bind('<Delete>', self.delete_selected_item)  # [추가] Delete 키로 선택 삭제
 
         # 하단 상태 라벨 (초기 문구 수정)
-        self.status_label = tk.Label(root, text="파일을 드래그하여 추가하세요.", fg="black", anchor="w", bd=1, relief="sunken")
+        self.status_label = tk.Label(root, text="파일을 드래그하여 추가하세요. (선택 후 Delete키로 개별 삭제 가능)", fg="black", anchor="w", bd=1, relief="sunken")
         self.status_label.pack(fill=tk.X, padx=10, pady=5)
 
         # __init__ 내 버튼 구성
         btn_frame = tk.Frame(root, pady=10)
         btn_frame.pack(fill=tk.X, padx=5)
 
-        tk.Button(btn_frame, text="파일 변환 실행", command=self.run_all_process, bg="skyblue", width=12).pack(side=tk.LEFT, expand=True, padx=2)
-        tk.Button(btn_frame, text="변환 파일 검수", command=self.review_original, bg="khaki", width=12).pack(side=tk.LEFT, expand=True, padx=2)
-        tk.Button(btn_frame, text="원본 덮어쓰기", command=lambda: self.save_files(True), bg="lightgreen", width=12).pack(side=tk.LEFT, expand=True, padx=2)
-        tk.Button(btn_frame, text="다른이름 저장", command=lambda: self.save_files(False), bg="orange", width=12).pack(side=tk.LEFT, expand=True, padx=2)
+        # [추가] '변경&저장' 버튼 (변환 + 검수 + 원본 덮어쓰기 원클릭)
+        tk.Button(btn_frame, text="변경&저장", command=self.run_all_in_one, bg="plum", width=10).pack(side=tk.LEFT, expand=True, padx=1)
+        tk.Button(btn_frame, text="파일 변환 실행", command=self.run_all_process, bg="skyblue", width=12).pack(side=tk.LEFT, expand=True, padx=1)
+        tk.Button(btn_frame, text="변환 파일 검수", command=self.review_original, bg="khaki", width=12).pack(side=tk.LEFT, expand=True, padx=1)
+        tk.Button(btn_frame, text="원본 덮어쓰기", command=lambda: self.save_files(True), bg="lightgreen", width=12).pack(side=tk.LEFT, expand=True, padx=1)
+        tk.Button(btn_frame, text="다른이름 저장", command=lambda: self.save_files(False), bg="orange", width=12).pack(side=tk.LEFT, expand=True, padx=1)
 
         self.tree.drop_target_register(DND_FILES)
         self.tree.dnd_bind('<<Drop>>', self.drop_files)
@@ -84,6 +88,23 @@ class SMIEditor:
         self.file_data.clear()
         self.temp_contents.clear()
         self.status_label.config(text="목록 초기화됨. 파일을 드래그하세요.")
+
+    # [추가] Delete 키로 선택된 항목만 개별 삭제하는 함수
+    def delete_selected_item(self, event=None):
+        selected_items = self.tree.selection()
+        if not selected_items:
+            return
+        
+        for item in selected_items:
+            # 메모리 딕셔너리에서도 제거
+            if item in self.file_data:
+                del self.file_data[item]
+            if item in self.temp_contents:
+                del self.temp_contents[item]
+            # 화면(트리뷰)에서 제거
+            self.tree.delete(item)
+            
+        self.status_label.config(text=f"선택한 파일이 목록에서 제외되었습니다. (남은 파일: {len(self.file_data)}개)")
 
     def on_header_double_click(self, event):
         # 1. 헤더 영역을 '한 번 클릭'했을 때의 정렬 처리
@@ -206,6 +227,17 @@ class SMIEditor:
             except Exception as e:
                 self.tree.set(item, "Info", f"검수 실패: {e}")
         self.status_label.config(text=f"{len(self.file_data)}개 파일 검수 완료.")
+
+    # [추가] 변경&저장 버튼을 위한 일괄 처리 함수 (변환 ➔ 검수 ➔ 원본 덮어쓰기)
+    def run_all_in_one(self):
+        if not self.file_data:
+            self.status_label.config(text="처리할 파일이 없습니다.")
+            return
+        
+        self.run_all_process()    # 1. 파일 변환 실행
+        self.review_original()    # 2. 변환 파일 검수
+        self.save_files(True)     # 3. 원본 덮어쓰기 저장
+        self.status_label.config(text="모든 파일의 변환, 검수 및 원본 덮어쓰기가 완료되었습니다.")
 
     def save_files(self, overwrite):
         count = 0
