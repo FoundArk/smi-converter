@@ -155,25 +155,26 @@ class SMIEditor:
                 if '맞는' in content:
                     matching_issues.append('맞는')
 
-                dot_issues = [] 
+                # 말줄임표(…) 검사 추가
+                dot_issues = []
                 if '…' in content:
                     dot_issues.append('… 발견')
                 
-                all_issues = an_issues + class_issues + k_issues 
-                if std_issues:
-                    info_parts.append(", ".join(std_issues) + " 발견")
-                if matching_issues:
-                    info_parts.append("맞는")
-                if dot_issues:
-                    info_parts.append(", ".join(dot_issues))
-                    
+                all_issues = an_issues + class_issues + k_issues + matching_issues 
+                if all_issues:
+                    info_parts = []
+                    std_issues = an_issues + class_issues + k_issues
+                    if std_issues:
+                        info_parts.append(", ".join(std_issues) + " 발견")
+                    if matching_issues:
+                        info_parts.append("맞는")
+                    if dot_issues:
+                        info_parts.append(", ".join(dot_issues))
                     info_text = " / ".join(info_parts)
-                    
-                if info_parts 
+                else:
+                    info_text = "이상 없음"
                 
-                else "이상 없음"
                 self.tree.set(item, "Info", info_text)
-                
                 
             except Exception as e:
                 self.tree.set(item, "Info", f"검수 실패: {e}")
@@ -206,10 +207,13 @@ class SMIEditor:
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
                 
-                # 파일 드래그 시점에도 '맞는' 단어 검사 추가
+                # 파일 드래그 시점에도 '맞는', '…' 단어 검사 추가
                 matching_issues = []
                 if '맞는' in content:
                     matching_issues.append('맞는')
+                dot_issues = []
+                if '…' in content:
+                    dot_issues.append('… 발견')
 
                 all_issues = an_issues + class_issues + k_issues + matching_issues
                 
@@ -220,10 +224,9 @@ class SMIEditor:
                         std_issues = an_issues + class_issues + k_issues
                         info_parts.append(", ".join(std_issues) + " 발견")
                     if matching_issues:
-                        info_parts.append("맞는 발견")
+                        info_parts.append("맞는")
                     if dot_issues:
                         info_parts.append(", ".join(dot_issues))
-                        
                     info_text = " / ".join(info_parts)
                 else:
                     info_text = "이상 없음"
