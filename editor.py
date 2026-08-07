@@ -102,6 +102,12 @@ class SMIEditor:
         
         # 3. \an8 삭제 (현재로서는 {\an8}만 발견되어 사용했으나, 1-9 범위 내 다른 숫자 발견 시 적용)
         content = re.sub(r'{\\an[1-9]}', '', content, flags=re.IGNORECASE)
+
+        # 4. 추가 요구사항: '…' -> '...' 변경
+        content = content.replace('…', '...')
+        
+        # 5. 추가 요구사항: '맞는구나' -> '맞구나' 변경
+        content = content.replace('맞는구나', '맞구나')
         
         return content
 
@@ -143,9 +149,20 @@ class SMIEditor:
                 k_issues = []
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
+
+                # '맞는다', '맞는구나'의 경우 확인 필요
+                matching_issues = []
+                if '맞는' in content:
+                    matching_issues.append('맞는')
                 
-                all_issues = an_issues + class_issues + k_issues
-                info_text = ", ".join(all_issues) + " 발견" if all_issues else "이상 없음"
+                all_issues = an_issues + class_issues + k_issues + matching_issues 
+                info_text = ", ".join(all_issues) + " 발견" if (all_issues and '맞는' not in all_issues[-1]) else ", ".join(all_issues)
+                if all_issues:
+                    info_text = ", ".join(all_issues)
+                    if '맞는' not in info_text:
+                        info_text += " 발견"
+                else:
+                    info_text = "이상 없음"
                 
                 self.tree.set(item, "Info", info_text)
                 
@@ -180,8 +197,24 @@ class SMIEditor:
                 if 'KOKRCC' in content.upper(): k_issues.append('KOKRCC')
                 elif 'KOKR' in content.upper(): k_issues.append('KOKR')
                 
-                all_issues = an_issues + class_issues + k_issues
-                info_text = ", ".join(all_issues) + " 발견" if all_issues else "이상 없음"
+                # 파일 드래그 시점에도 '맞는' 단어 검사 추가
+                matching_issues = []
+                if '맞는' in content:
+                    matching_issues.append('맞는')
+
+                all_issues = an_issues + class_issues + k_issues + matching_issues
+                
+                if all_issues:
+                    # '맞는'가 포함된 경우 문구 조합 처리
+                    info_parts = []
+                    if an_issues or class_issues or k_issues:
+                        std_issues = an_issues + class_issues + k_issues
+                        info_parts.append(", ".join(std_issues) + " 발견")
+                    if matching_issues:
+                        info_parts.append("맞는")
+                    info_text = " / ".join(info_parts)
+                else:
+                    info_text = "이상 없음"
                 
                 enc = self.get_encoding(f)
                 item = self.tree.insert("", "end", values=(os.path.basename(f), "준비됨", enc, info_text))
