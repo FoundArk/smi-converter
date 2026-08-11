@@ -146,7 +146,7 @@ class SMIEditor:
         content = re.sub(r'(<P\s+Class=)[^>]+>', r'\1KRCC>', content, flags=re.IGNORECASE)
         
         # 2. 줄바꿈 최적화 (<br> 포함 필수 줄바꿈)
-        content = re.sub(r'(<P Class=KRCC>)(?!\s*&nbsp;)([^\s\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
+        content = re.sub(r'(<P Class=KRCC>)\s*(?!&nbsp;)([^\r\n])', r'\1\n\2', content, flags=re.IGNORECASE)
         content = re.sub(r'(<br>)\s*([^\r\n<>])', r'\1\n\2', content, flags=re.IGNORECASE)
         
         # 3. \an8 삭제 (현재로서는 {\an8}만 발견되어 사용했으나, 1-9 범위 내 다른 숫자 발견 시 적용)
